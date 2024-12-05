@@ -18,9 +18,8 @@ class _Readers:
     def _read_csv(s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> pd.DataFrame:
         sep = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('separatorChar', ',')
         header = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('skip.header.line.count', 0)
-        quoting = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('quoteChar', '"')
         
-        return pd.read_csv(s3_path, sep=sep, header=header, quoting=quoting)
+        return pd.read_csv(s3_path, sep=sep, header=header)
 
 class _Writers:
     
