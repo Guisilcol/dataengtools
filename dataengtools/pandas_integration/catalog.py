@@ -17,6 +17,7 @@ class _Reader(ABC):
     ) -> pd.DataFrame:
         pass
 
+
 class _ParquetReader(_Reader):
     def read(self, 
              s3_path: str, 
@@ -24,6 +25,7 @@ class _ParquetReader(_Reader):
              columns: Optional[List[str]] = None
     ) -> pd.DataFrame:
         return pd.read_parquet(s3_path, columns=columns)
+
     
 class _CSVReader(_Reader):
     def read(self, 
@@ -35,15 +37,18 @@ class _CSVReader(_Reader):
         header = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('skip.header.line.count', 0)
         return pd.read_csv(s3_path, sep=sep, header=header, columns=columns)
 
+
 class _Writer(ABC):
     @abstractmethod
     def write(self, df: pd.DataFrame, s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> None:
         pass
+
     
 class _ParquetWriter(_Writer):
     def write(self, df: pd.DataFrame, s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> None:
         compression = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('compressionType', 'snappy')
         df.to_parquet(s3_path, compression=compression)
+
         
 class _CSVWriter(_Writer):
     def write(self, df: pd.DataFrame, s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> None:
@@ -156,11 +161,16 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
         storage_descriptor = metadata['StorageDescriptor']
         for file in files:
             s3_path = self._create_s3_path(bucket, file)
-            dfs.append(reader(s3_path, storage_descriptor))
+            dfs.append(reader(s3_path, storage_descriptor, columns))
                 
         return pd.concat(dfs)
     
-    def read_partitioned_table(self, db: str, table: str, conditions: str): 
+    def read_partitioned_table(self, 
+                               db: str, 
+                               table: str, 
+                               conditions: str, 
+                               columns: Optional[List[str]] = None
+    ) -> pd.DataFrame: 
         # Get all partitions that match the conditions via Glue client, then get the location of each partition and read the data
         
         partitions = self._get_partitions(db, table, conditions)
@@ -180,7 +190,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             storage_descriptor = partition['StorageDescriptor']
             for file in files:
                 s3_path = self._create_s3_path(bucket, file)
-                dfs.append(reader(s3_path, storage_descriptor))
+                dfs.append(reader(s3_path, storage_descriptor, columns))
         
     def adapt_frame_to_table_schema(self, df: pd.DataFrame, db: str, table: str) -> pd.DataFrame:
         metadata = self._get_table(db, table)
