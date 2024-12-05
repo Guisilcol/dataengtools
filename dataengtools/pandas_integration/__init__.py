@@ -1,0 +1,1 @@
+from dataengtools.pandas_integration.catalog import GlueCatalogWithPandas
