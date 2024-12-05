@@ -9,7 +9,7 @@ class Catalog(Generic[T], ABC):
         pass
     
     @abstractmethod
-    def read_table(self, db: str, table: str) -> T:
+    def read_table(self, db: str, table: str, columns: List[str]) -> T:
         pass
     
     @abstractmethod

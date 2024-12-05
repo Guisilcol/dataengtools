@@ -1,5 +1,5 @@
 import time
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 import pandas as pd
 from mypy_boto3_glue import GlueClient
 from mypy_boto3_glue.type_defs import PartitionTypeDef, TableTypeDef, StorageDescriptorTypeDef
@@ -11,15 +11,14 @@ import dataengtools.interfaces as interfaces
 class _Readers:
 
     @staticmethod
-    def _read_parquet(s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> pd.DataFrame:
-      return pd.read_parquet(s3_path)
+    def _read_parquet(s3_path: str, storage_descriptor: StorageDescriptorTypeDef, columns: Optional[List[str]] = None) -> pd.DataFrame:
+      return pd.read_parquet(s3_path, columns=columns)
       
     @staticmethod
-    def _read_csv(s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> pd.DataFrame:
+    def _read_csv(s3_path: str, storage_descriptor: StorageDescriptorTypeDef, columns: Optional[List[str]] = None) -> pd.DataFrame:
         sep = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('separatorChar', ',')
         header = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('skip.header.line.count', 0)
-        
-        return pd.read_csv(s3_path, sep=sep, header=header)
+        return pd.read_csv(s3_path, sep=sep, header=header, columns=columns)
 
 class _Writers:
     
@@ -118,7 +117,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
     def get_location(self, db: str, table: str) -> str:
         return self._get_table(db, table)['StorageDescriptor']['Location']
     
-    def read_table(self, db: str, table: str) -> pd.DataFrame:
+    def read_table(self, db: str, table: str, columns: Optional[List[str]] = None) -> pd.DataFrame:
         metadata = self._get_table(db, table)
         location = metadata['StorageDescriptor']['Location']
         input_format = metadata['StorageDescriptor']['InputFormat']
