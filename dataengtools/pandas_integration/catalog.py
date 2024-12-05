@@ -213,17 +213,31 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
         partitions =  self._get_table(db, table)['PartitionKeys']
         return [partition['Name'] for partition in partitions]
     
-    def write_table(self, df: pd.DataFrame, db: str, table: str, overwrite: bool) -> None:
+    def write_table(self, df: pd.DataFrame, db: str, table: str, overwrite: bool = True) -> None:
         table = self._get_table(db, table)   
         location = table['StorageDescriptor']['Location']
         bucket, prefix = self._get_bucket_and_prefix(location)
         
         partitions_columns = self.get_partition_columns(db, table)
-        
+                
         # Is table partitioned?
         if partitions_columns:
             # Write the DataFrame to the table location, creating a partition for each unique combination of partition columns
             for grouped_df, values in df.groupby(partitions_columns):
+                
+                if overwrite:
+                    # Delete the partition if it already exists
+                    partitions = self._get_partitions(db, table, ' AND '.join(f'{column}={value}' for column, value in zip(partitions_columns, values)))
+                    for partition in partitions:
+                        self.glue_client.delete_partition(DatabaseName=db, TableName=table, PartitionValues=partition['Values'])
+                        
+                    # Delete the data in the S3 location
+                    
+                    s3_path = self._create_s3_path(bucket, f'{prefix}/{partition}')
+                    files = self._get_s3_keys_from_prefix(bucket, s3_path)
+                    for file in files:
+                        self.s3_client.delete_object(Bucket=bucket, Key=file)                
+                
                 partition = '/'.join(f'{column}={value}' for column, value in zip(partitions_columns, values))
                 s3_path = self._create_s3_path(bucket, f'{prefix}/{partition}')
                 writer = self.OUTPUT_FORMAT_TO_WRITER.get(table['StorageDescriptor']['OutputFormat'])
@@ -235,6 +249,12 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
                 
         else:
             # Write the DataFrame to the table location
+            if overwrite:
+                # Delete the data in the S3 location
+                files = self._get_s3_keys_from_prefix(bucket, prefix)
+                for file in files:
+                    self.s3_client.delete_object(Bucket=bucket, Key=file)
+            
             s3_path = self._create_s3_path(bucket, prefix)
             writer = self.OUTPUT_FORMAT_TO_WRITER.get(table['StorageDescriptor']['OutputFormat'])
             if writer is None:
