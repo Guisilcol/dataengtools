@@ -116,13 +116,12 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             time.sleep(0.2)  # 200ms
         
     def get_location(self, db: str, table: str) -> str:
-        response = self.glue_client.get_table(DatabaseName=db, Name=table)
-        return response['Table']['StorageDescriptor']['Location']
+        return self._get_table(db, table)['StorageDescriptor']['Location']
     
     def read_table(self, db: str, table: str) -> pd.DataFrame:
-        response = self.glue_client.get_table(DatabaseName=db, Name=table)
-        location = response['Table']['StorageDescriptor']['Location']
-        input_format = response['Table']['StorageDescriptor']['InputFormat']
+        metadata = self._get_table(db, table)
+        location = metadata['StorageDescriptor']['Location']
+        input_format = metadata['StorageDescriptor']['InputFormat']
         
         reader = self.INPUT_FORMAT_TO_READER.get(input_format)
         
@@ -133,7 +132,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
                 
         dfs = []
         files = self._get_s3_keys_from_prefix(bucket, prefix)
-        storage_descriptor = response['Table']['StorageDescriptor']
+        storage_descriptor = metadata['StorageDescriptor']
         for file in files:
             s3_path = self._create_s3_path(bucket, file)
             dfs.append(reader(s3_path, storage_descriptor))
@@ -163,8 +162,8 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
                 dfs.append(reader(s3_path, storage_descriptor))
         
     def adapt_frame_to_table_schema(self, df: pd.DataFrame, db: str, table: str) -> pd.DataFrame:
-        response = self.glue_client.get_table(DatabaseName=db, Name=table)
-        schema = response['Table']['StorageDescriptor']['Columns']
+        metadata = self._get_table(db, table)
+        schema = metadata['StorageDescriptor']['Columns']
         
         # Adapt the DataFrame to the schema, getting the same columns in the same order, data types, nullability and creating new columns if necessary with null values
         
