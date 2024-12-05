@@ -2,7 +2,7 @@ import time
 from typing import Tuple, List
 import pandas as pd
 from mypy_boto3_glue import GlueClient
-from mypy_boto3_glue.type_defs import PartitionTypeDef, TableTypeDef
+from mypy_boto3_glue.type_defs import PartitionTypeDef, TableTypeDef, StorageDescriptorTypeDef
 from mypy_boto3_s3 import S3Client
 from mypy_boto3_athena import AthenaClient
 import dataengtools.interfaces as interfaces
@@ -11,12 +11,16 @@ import dataengtools.interfaces as interfaces
 class _Readers:
 
     @staticmethod
-    def _read_parquet(s3_path: str) -> pd.DataFrame:
-        return pd.read_parquet(s3_path)
-    
+    def _read_parquet(s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> pd.DataFrame:
+      return pd.read_parquet(s3_path)
+      
     @staticmethod
-    def _read_csv(s3_path: str, sep: str) -> pd.DataFrame:
-        return pd.read_csv(s3_path, sep=sep)
+    def _read_csv(s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> pd.DataFrame:
+        sep = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('separatorChar', ',')
+        header = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('skip.header.line.count', 0)
+        quoting = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('quoteChar', '"')
+        
+        return pd.read_csv(s3_path, sep=sep, header=header, quoting=quoting)
 
 class _Writers:
     
@@ -130,9 +134,10 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
                 
         dfs = []
         files = self._get_s3_keys_from_prefix(bucket, prefix)
+        storage_descriptor = response['Table']['StorageDescriptor']
         for file in files:
             s3_path = self._create_s3_path(bucket, file)
-            dfs.append(reader(s3_path))
+            dfs.append(reader(s3_path, storage_descriptor))
                 
         return pd.concat(dfs)
     
@@ -153,9 +158,10 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             
             bucket, prefix = self._get_bucket_and_prefix(location)
             files = self._get_s3_keys_from_prefix(bucket, prefix)
+            storage_descriptor = partition['StorageDescriptor']
             for file in files:
                 s3_path = self._create_s3_path(bucket, file)
-                dfs.append(reader(s3_path))
+                dfs.append(reader(s3_path, storage_descriptor))
         
     def adapt_frame_to_table_schema(self, df: pd.DataFrame, db: str, table: str) -> pd.DataFrame:
         response = self.glue_client.get_table(DatabaseName=db, Name=table)
