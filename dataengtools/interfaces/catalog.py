@@ -5,7 +5,7 @@ T = TypeVar('T')
 
 class Catalog(Generic[T], ABC):
     @abstractmethod
-    def get_location(self) -> str:
+    def get_location(self, db: str, table: str) -> str:
         pass
     
     @abstractmethod
