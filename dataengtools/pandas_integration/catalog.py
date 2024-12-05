@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import time
 from typing import Tuple, List, Optional
 import pandas as pd
@@ -7,40 +8,61 @@ from mypy_boto3_s3 import S3Client
 from mypy_boto3_athena import AthenaClient
 import dataengtools.interfaces as interfaces
 
+class _Reader(ABC):
+    @abstractmethod
+    def read(self, 
+             s3_path: str, 
+             storage_descriptor: StorageDescriptorTypeDef, 
+             columns: Optional[List[str]] = None
+    ) -> pd.DataFrame:
+        pass
 
-class _Readers:
-
-    @staticmethod
-    def _read_parquet(s3_path: str, storage_descriptor: StorageDescriptorTypeDef, columns: Optional[List[str]] = None) -> pd.DataFrame:
-      return pd.read_parquet(s3_path, columns=columns)
-      
-    @staticmethod
-    def _read_csv(s3_path: str, storage_descriptor: StorageDescriptorTypeDef, columns: Optional[List[str]] = None) -> pd.DataFrame:
+class _ParquetReader(_Reader):
+    def read(self, 
+             s3_path: str, 
+             storage_descriptor: StorageDescriptorTypeDef, 
+             columns: Optional[List[str]] = None
+    ) -> pd.DataFrame:
+        return pd.read_parquet(s3_path, columns=columns)
+    
+class _CSVReader(_Reader):
+    def read(self, 
+             s3_path: str, 
+             storage_descriptor: StorageDescriptorTypeDef, 
+             columns: Optional[List[str]] = None
+    ) -> pd.DataFrame:
         sep = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('separatorChar', ',')
         header = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('skip.header.line.count', 0)
         return pd.read_csv(s3_path, sep=sep, header=header, columns=columns)
 
-class _Writers:
+class _Writer(ABC):
+    @abstractmethod
+    def write(self, df: pd.DataFrame, s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> None:
+        pass
     
-    @staticmethod
-    def _write_parquet(df: pd.DataFrame, s3_path: str) -> None:
-        df.to_parquet(s3_path)
+class _ParquetWriter(_Writer):
+    def write(self, df: pd.DataFrame, s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> None:
+        compression = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('compressionType', 'snappy')
+        df.to_parquet(s3_path, compression=compression)
         
-    @staticmethod
-    def _write_csv(df: pd.DataFrame, s3_path: str, sep: str, header: str, quoting: bool) -> None:
+class _CSVWriter(_Writer):
+    def write(self, df: pd.DataFrame, s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> None:
+        sep = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('separatorChar', ',')
+        header = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('skip.header.line.count', 0)
+        quoting = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('quoteChar', '"')
         df.to_csv(s3_path, sep=sep, header=header, index=False, quoting=quoting)
 
 
 class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
     
     INPUT_FORMAT_TO_READER = {
-        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat': _Readers._read_parquet,
-        'org.apache.hadoop.mapred.TextInputFormat': _Readers._read_csv,
+        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat': _ParquetReader().read,
+        'org.apache.hadoop.mapred.TextInputFormat': _CSVReader().read,
     }
     
     OUTPUT_FORMAT_TO_WRITER = {
-        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat': _Writers._write_parquet,
-        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat': _Writers._write_csv,
+        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat': _ParquetWriter().write,
+        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat': _CSVWriter().write,
     }
     
     CATALOG_DATATYPE_TO_PANDAS = {
