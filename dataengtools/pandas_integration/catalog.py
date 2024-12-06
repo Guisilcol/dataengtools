@@ -74,12 +74,6 @@ class _CSVWriter(_Writer):
 
 
 class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
-    
-    INPUT_FORMAT_TO_READER = {
-        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat': _ParquetReader().read,
-        'org.apache.hadoop.mapred.TextInputFormat': _CSVReader().read,
-    }
-    
     OUTPUT_FORMAT_TO_WRITER = {
         'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat': _ParquetWriter().write,
         'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat': _CSVWriter().write,
