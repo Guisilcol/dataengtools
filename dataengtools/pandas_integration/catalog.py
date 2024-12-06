@@ -204,19 +204,18 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
     def adapt_frame_to_table_schema(self, df: pd.DataFrame, db: str, table: str) -> pd.DataFrame:
         metadata = self._get_table(db, table)
         schema = metadata['StorageDescriptor']['Columns']
-        
-        # Adapt the DataFrame to the schema, getting the same columns in the same order, data types, nullability and creating new columns if necessary with null values
-        
-        for column in schema:
-            if column['Name'] not in df.columns:
-                df[column['Name']] = None
-                
-            datatype = self.CATALOG_DATATYPE_TO_PANDAS.get(column['Type'])
-            if datatype:
-                df[column['Name']] = df[column['Name']].astype(datatype)
+        adapted_df = pd.DataFrame()
 
-        columns = [column['Name'] for column in schema]
-        return df[columns]
+        for column in schema:
+            column_name = column['Name']
+            pandas_dtype = self.CATALOG_DATATYPE_TO_PANDAS.get(column['Type'], 'object')
+            
+            if column_name not in df.columns:
+                adapted_df[column_name] = pd.Series(dtype=pandas_dtype)
+            else:
+                adapted_df[column_name] = df[column_name].astype(pandas_dtype)
+
+        return adapted_df
     
     def get_partition_columns(self, db: str, table: str) -> List[str]:
         partitions =  self._get_table(db, table)['PartitionKeys']
