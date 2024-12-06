@@ -144,7 +144,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
         bucket, prefix = S3Utils.get_bucket_and_prefix(location)
         files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, prefix)
         
-        dfs = [reader(self._create_s3_path(bucket, file), storage_descriptor, columns) for file in files]
+        dfs = [reader.read(self._create_s3_path(bucket, file), storage_descriptor, columns) for file in files]
         return pd.concat(dfs)
         
     def get_location(self, db: str, table: str) -> str:
