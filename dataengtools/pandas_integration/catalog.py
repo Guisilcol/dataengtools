@@ -188,9 +188,13 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             bucket, prefix = self._get_bucket_and_prefix(location)
             files = self._get_s3_keys_from_prefix(bucket, prefix)
             storage_descriptor = partition['StorageDescriptor']
+            
+            partition_columns = self.get_partition_columns(db, table)
 
             for file in files:
-                s3_path = self._create_s3_path(bucket, file)
+                partition_path = '/'.join(f'{column}={value}' for column, value in zip(partition_columns, partition['Values']))
+                full_path = f'{prefix}/{partition_path}/{file}'
+                s3_path = self._create_s3_path(bucket, full_path)
                 dfs.append(reader(s3_path, storage_descriptor, columns))
                 
         return pd.concat(dfs)
