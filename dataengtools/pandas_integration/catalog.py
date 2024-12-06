@@ -7,6 +7,7 @@ from mypy_boto3_glue.type_defs import PartitionTypeDef, TableTypeDef, StorageDes
 from mypy_boto3_s3 import S3Client
 from mypy_boto3_athena import AthenaClient
 import dataengtools.interfaces as interfaces
+from dataengtools.aws_utils.s3 import S3Utils
 
 class _Reader(ABC):
     @abstractmethod
@@ -101,23 +102,9 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
         self.athena_client = athena_client
         self.athena_output_s3_path = athena_output_s3_path
         
-    def _get_bucket_and_prefix(self, s3_path: str) -> Tuple[str, str]:
-        return s3_path.replace('s3://', '').split('/', 1)
-        
     def _create_s3_path(self, bucket: str, prefix: str) -> str:
         return f's3://{bucket}/{prefix}'
         
-    def _get_s3_keys_from_prefix(self, bucket: str, prefix: str) -> List[str]:
-        paginator = self.s3_client.get_paginator('list_objects_v2')
-        response_iterator = paginator.paginate(Bucket=bucket, Prefix=prefix)
-        
-        files = []
-        for response in response_iterator:
-            for obj in response['Contents']:
-                files.append(obj['Key'])
-                
-        return files
-
     def _get_partitions(self, db: str, table: str, conditions: str) -> List[PartitionTypeDef]:
         paginator = self.glue_client.get_paginator('get_partitions')
         response_iterator = paginator.paginate(DatabaseName=db, TableName=table, Expression=conditions)
@@ -168,10 +155,10 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
         if reader is None:
             raise ValueError(f'The table have a unsupported input format: {input_format}')
         
-        bucket, prefix = self._get_bucket_and_prefix(location)
+        bucket, prefix = S3Utils.get_bucket_and_prefix(location)
                 
         dfs = []
-        files = self._get_s3_keys_from_prefix(bucket, prefix)
+        files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, prefix)
         storage_descriptor = metadata['StorageDescriptor']
         for file in files:
             s3_path = self._create_s3_path(bucket, file)
@@ -199,13 +186,13 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             if reader is None:
                 raise ValueError(f'The table have a unsupported input format: {input_format}')
             
-            bucket, prefix = self._get_bucket_and_prefix(location)
+            bucket, prefix = S3Utils.get_bucket_and_prefix(location)
             storage_descriptor = partition['StorageDescriptor']
             
             partition_columns = self.get_partition_columns(db, table)            
             partition_path = '/'.join(f'{column}={value}' for column, value in zip(partition_columns, partition['Values']))
             full_prefix = f'{prefix}/{partition_path}'
-            files = self._get_s3_keys_from_prefix(bucket, full_prefix)
+            files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, full_prefix)
 
             for file in files:
                 s3_path = self._create_s3_path(bucket, file)
@@ -238,7 +225,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
     def write_table(self, df: pd.DataFrame, db: str, table: str, overwrite: bool = True) -> None:
         table = self._get_table(db, table)   
         location = table['StorageDescriptor']['Location']
-        bucket, prefix = self._get_bucket_and_prefix(location)
+        bucket, prefix = S3Utils.get_bucket_and_prefix(location)
         
         partitions_columns = self.get_partition_columns(db, table)
                 
@@ -256,7 +243,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
                     # Delete the data in the S3 location
                     
                     s3_path = self._create_s3_path(bucket, f'{prefix}/{partition}')
-                    files = self._get_s3_keys_from_prefix(bucket, s3_path)
+                    files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, s3_path)
                     for file in files:
                         self.s3_client.delete_object(Bucket=bucket, Key=file)                
                 
@@ -273,7 +260,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             # Write the DataFrame to the table location
             if overwrite:
                 # Delete the data in the S3 location
-                files = self._get_s3_keys_from_prefix(bucket, prefix)
+                files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, prefix)
                 for file in files:
                     self.s3_client.delete_object(Bucket=bucket, Key=file)
             
