@@ -191,6 +191,8 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             for file in files:
                 s3_path = self._create_s3_path(bucket, file)
                 dfs.append(reader(s3_path, storage_descriptor, columns))
+                
+        return pd.concat(dfs)
         
     def adapt_frame_to_table_schema(self, df: pd.DataFrame, db: str, table: str) -> pd.DataFrame:
         metadata = self._get_table(db, table)
