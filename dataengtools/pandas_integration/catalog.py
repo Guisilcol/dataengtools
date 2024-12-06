@@ -33,7 +33,7 @@ class _CSVReader(_Reader):
              storage_descriptor: StorageDescriptorTypeDef, 
              columns: Optional[List[str]] = None
     ) -> pd.DataFrame:
-        sep = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('separatorChar', ',')
+        sep = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('field.delim', ',')
         header = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('skip.header.line.count', 0)
         return pd.read_csv(s3_path, sep=sep, header=header)
 
@@ -188,6 +188,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             bucket, prefix = self._get_bucket_and_prefix(location)
             files = self._get_s3_keys_from_prefix(bucket, prefix)
             storage_descriptor = partition['StorageDescriptor']
+
             for file in files:
                 s3_path = self._create_s3_path(bucket, file)
                 dfs.append(reader(s3_path, storage_descriptor, columns))
