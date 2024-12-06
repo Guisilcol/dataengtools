@@ -18,3 +18,11 @@ class S3Utils:
                 files.append(obj['Key'])
                 
         return files
+    
+    @staticmethod
+    def delete_files(s3_client: S3Client, bucket: str, keys: List[str]) -> None:
+        batch_size = 1000
+        keys_batchs = [keys[i:i + batch_size] for i in range(0, len(keys), batch_size)]
+        
+        for keys in keys_batchs:
+            s3_client.delete_objects(Bucket=bucket, Delete={'Objects': {'Key': keys}})
