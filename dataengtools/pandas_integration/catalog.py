@@ -229,10 +229,9 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
                         
                     # Delete the data in the S3 location
                     
-                    s3_path = self._create_s3_path(bucket, f'{prefix}/{partition}')
-                    files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, s3_path)
-                    for file in files:
-                        self.s3_client.delete_object(Bucket=bucket, Key=file)                
+                    partition_prefix = f'{prefix}/{partition}'
+                    files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, partition_prefix)
+                    S3Utils.delete_files(self.s3_client, bucket, files)
                 
                 partition = '/'.join(f'{column}={value}' for column, value in zip(partitions_columns, values))
                 s3_path = self._create_s3_path(bucket, f'{prefix}/{partition}')
@@ -248,8 +247,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             if overwrite:
                 # Delete the data in the S3 location
                 files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, prefix)
-                for file in files:
-                    self.s3_client.delete_object(Bucket=bucket, Key=file)
+                S3Utils.delete_files(self.s3_client, bucket, files)
             
             s3_path = self._create_s3_path(bucket, prefix)
             writer = self.OUTPUT_FORMAT_TO_WRITER.get(table['StorageDescriptor']['OutputFormat'])
