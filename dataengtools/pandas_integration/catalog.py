@@ -141,6 +141,17 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
                 raise ValueError(f'The query {query} execution failed with status {status}')
             
             time.sleep(0.2)  # 200ms
+    
+    def _read_data(self, location: str, input_format: str, storage_descriptor: StorageDescriptorTypeDef, columns: Optional[List[str]]) -> pd.DataFrame:
+        reader = _ReaderFactory.get_reader(input_format)
+        if reader is None:
+            raise ValueError(f"Unsupported input format: {input_format}")
+        
+        bucket, prefix = S3Utils.get_bucket_and_prefix(location)
+        files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, prefix)
+        
+        dfs = [reader(self._create_s3_path(bucket, file), storage_descriptor, columns) for file in files]
+        return pd.concat(dfs)
         
     def get_location(self, db: str, table: str) -> str:
         return self._get_table(db, table)['StorageDescriptor']['Location']
@@ -149,22 +160,8 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
         metadata = self._get_table(db, table)
         location = metadata['StorageDescriptor']['Location']
         input_format = metadata['StorageDescriptor']['InputFormat']
-        
-        reader = _ReaderFactory.get_reader(input_format)
-        
-        if reader is None:
-            raise ValueError(f'The table have a unsupported input format: {input_format}')
-        
-        bucket, prefix = S3Utils.get_bucket_and_prefix(location)
-                
-        dfs = []
-        files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, prefix)
-        storage_descriptor = metadata['StorageDescriptor']
-        for file in files:
-            s3_path = self._create_s3_path(bucket, file)
-            dfs.append(reader(s3_path, storage_descriptor, columns))
-                
-        return pd.concat(dfs)
+        return self._read_data(location, input_format, metadata['StorageDescriptor'], columns)
+
     
     def read_partitioned_table(self, 
                                db: str, 
@@ -186,17 +183,14 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             if reader is None:
                 raise ValueError(f'The table have a unsupported input format: {input_format}')
             
-            bucket, prefix = S3Utils.get_bucket_and_prefix(location)
-            storage_descriptor = partition['StorageDescriptor']
-            
+            bucket, prefix = S3Utils.get_bucket_and_prefix(location)            
             partition_columns = self.get_partition_columns(db, table)            
             partition_path = '/'.join(f'{column}={value}' for column, value in zip(partition_columns, partition['Values']))
             full_prefix = f'{prefix}/{partition_path}'
-            files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, full_prefix)
-
-            for file in files:
-                s3_path = self._create_s3_path(bucket, file)
-                dfs.append(reader(s3_path, storage_descriptor, columns))
+            s3_path = self._create_s3_path(bucket, full_prefix)
+            dfs.append(
+                self._read_data(s3_path, input_format, partition['StorageDescriptor'], columns)
+            )
             
                 
         return pd.concat(dfs)
