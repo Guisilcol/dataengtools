@@ -38,6 +38,20 @@ class _CSVReader(_Reader):
         return pd.read_csv(s3_path, sep=sep, header=header)
 
 
+class _ReaderFactory:
+    _readers = {
+        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat': _ParquetReader,
+        'org.apache.hadoop.mapred.TextInputFormat': _CSVReader,
+    }
+
+    @staticmethod
+    def get_reader(input_format: str) -> _Reader:
+        reader_class = _ReaderFactory._readers.get(input_format)
+        if not reader_class:
+            raise ValueError(f"Unsupported input format: {input_format}")
+        return reader_class()
+
+
 class _Writer(ABC):
     @abstractmethod
     def write(self, df: pd.DataFrame, s3_path: str, storage_descriptor: StorageDescriptorTypeDef) -> None:
@@ -149,7 +163,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
         location = metadata['StorageDescriptor']['Location']
         input_format = metadata['StorageDescriptor']['InputFormat']
         
-        reader = self.INPUT_FORMAT_TO_READER.get(input_format)
+        reader = _ReaderFactory.get_reader(input_format)
         
         if reader is None:
             raise ValueError(f'The table have a unsupported input format: {input_format}')
@@ -180,7 +194,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             location = partition['StorageDescriptor']['Location']
             input_format = partition['StorageDescriptor']['InputFormat']
             
-            reader = self.INPUT_FORMAT_TO_READER.get(input_format)
+            reader = _ReaderFactory.get_reader(input_format)
             
             if reader is None:
                 raise ValueError(f'The table have a unsupported input format: {input_format}')
