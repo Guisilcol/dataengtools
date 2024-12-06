@@ -35,7 +35,7 @@ class _CSVReader(_Reader):
     ) -> pd.DataFrame:
         sep = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('separatorChar', ',')
         header = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('skip.header.line.count', 0)
-        return pd.read_csv(s3_path, sep=sep, header=header, columns=columns)
+        return pd.read_csv(s3_path, sep=sep, header=header)
 
 
 class _Writer(ABC):
