@@ -72,13 +72,20 @@ class _CSVWriter(_Writer):
         quoting = storage_descriptor.get('SerdeInfo', {}).get('Parameters', {}).get('quoteChar', '"')
         df.to_csv(s3_path, sep=sep, header=header, index=False, quoting=quoting)
 
+class _WriterFactory:
+    _writers = {
+        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat': _ParquetWriter,
+        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat': _CSVWriter,
+    }
+
+    @staticmethod
+    def get_writer(output_format: str) -> _Writer:
+        writer_class = _WriterFactory._writers.get(output_format)
+        if not writer_class:
+            raise ValueError(f"Unsupported output format: {output_format}")
+        return writer_class()
 
 class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
-    OUTPUT_FORMAT_TO_WRITER = {
-        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat': _ParquetWriter().write,
-        'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat': _CSVWriter().write,
-    }
-    
     CATALOG_DATATYPE_TO_PANDAS = {
         'string': 'object',
         'int': 'int64',
@@ -98,6 +105,9 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
         
     def _create_s3_path(self, bucket: str, prefix: str) -> str:
         return f's3://{bucket}/{prefix}'
+    
+    def _get_bucket_and_prefix_from_s3_path(self, s3_path: str) -> Tuple[str, str]:
+        return s3_path.replace('s3://', '').split('/', 1) 
         
     def _get_partitions(self, db: str, table: str, conditions: str) -> List[PartitionTypeDef]:
         paginator = self.glue_client.get_paginator('get_partitions')
@@ -141,7 +151,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
         if reader is None:
             raise ValueError(f"Unsupported input format: {input_format}")
         
-        bucket, prefix = S3Utils.get_bucket_and_prefix(location)
+        bucket, prefix = self._get_bucket_and_prefix_from_s3_path(location)
         files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, prefix)
         
         dfs = [reader.read(self._create_s3_path(bucket, file), storage_descriptor, columns) for file in files]
@@ -155,7 +165,6 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
         location = metadata['StorageDescriptor']['Location']
         input_format = metadata['StorageDescriptor']['InputFormat']
         return self._read_data(location, input_format, metadata['StorageDescriptor'], columns)
-
     
     def read_partitioned_table(self, 
                                db: str, 
@@ -177,7 +186,7 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
             if reader is None:
                 raise ValueError(f'The table have a unsupported input format: {input_format}')
             
-            bucket, prefix = S3Utils.get_bucket_and_prefix(location)            
+            bucket, prefix = self._get_bucket_and_prefix_from_s3_path(location)            
             partition_columns = self.get_partition_columns(db, table)            
             partition_path = '/'.join(f'{column}={value}' for column, value in zip(partition_columns, partition['Values']))
             full_prefix = f'{prefix}/{partition_path}'
@@ -210,55 +219,77 @@ class GlueCatalogWithPandas(interfaces.Catalog[pd.DataFrame]):
         return [partition['Name'] for partition in partitions]
     
     def write_table(self, df: pd.DataFrame, db: str, table: str, overwrite: bool = True) -> None:
-        table = self._get_table(db, table)   
-        location = table['StorageDescriptor']['Location']
-        bucket, prefix = S3Utils.get_bucket_and_prefix(location)
-        
-        partitions_columns = self.get_partition_columns(db, table)
-                
-        # Is table partitioned?
-        if partitions_columns:
-            # Write the DataFrame to the table location, creating a partition for each unique combination of partition columns
-            for grouped_df, values in df.groupby(partitions_columns):
-                
-                if overwrite:
-                    # Delete the partition if it already exists
-                    partitions = self._get_partitions(db, table, ' AND '.join(f'{column}={value}' for column, value in zip(partitions_columns, values)))
-                    for partition in partitions:
-                        self.glue_client.delete_partition(DatabaseName=db, TableName=table, PartitionValues=partition['Values'])
-                        
-                    # Delete the data in the S3 location
-                    
-                    partition_prefix = f'{prefix}/{partition}'
-                    files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, partition_prefix)
-                    S3Utils.delete_files(self.s3_client, bucket, files)
-                
-                partition = '/'.join(f'{column}={value}' for column, value in zip(partitions_columns, values))
-                s3_path = self._create_s3_path(bucket, f'{prefix}/{partition}')
-                writer = self.OUTPUT_FORMAT_TO_WRITER.get(table['StorageDescriptor']['OutputFormat'])
-                if writer is None:
-                    raise ValueError(f'The table have a unsupported output format: {table["StorageDescriptor"]["OutputFormat"]}')
-                writer(grouped_df, s3_path)
-                
-                self._repair_table(db, table, self.athena_output_s3_path)
-                
+        """
+        Writes a DataFrame to a Glue table, handling partitions and overwrites.
+        """
+        table_metadata = self._get_table(db, table)
+        location = table_metadata['StorageDescriptor']['Location']
+        bucket, prefix = self._get_bucket_and_prefix_from_s3_path(location)
+        partition_columns = self.get_partition_columns(db, table)
+
+        writer = self._get_writer_or_fail(table_metadata)
+
+        if partition_columns:
+            self._write_partitioned_table(df, bucket, prefix, db, table, partition_columns, writer, overwrite)
         else:
-            # Write the DataFrame to the table location
+            self._write_unpartitioned_table(df, bucket, prefix, writer, overwrite)
+
+    def _get_writer_or_fail(self, table_metadata: dict):
+        """Retrieve the writer for the table's output format or raise an error."""
+        return _WriterFactory.get_writer(table_metadata['StorageDescriptor']['OutputFormat'])
+
+    def _write_partitioned_table(self, df: pd.DataFrame, bucket: str, prefix: str, db: str, table: str,
+                                partition_columns: List[str], writer, overwrite: bool) -> None:
+        """Handles the logic for writing to a partitioned Glue table."""
+        for grouped_df, values in df.groupby(partition_columns):
+            partition_path = self._create_partition_path(partition_columns, values)
+            full_prefix = f"{prefix}/{partition_path}"
+
             if overwrite:
-                # Delete the data in the S3 location
-                files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, prefix)
-                S3Utils.delete_files(self.s3_client, bucket, files)
+                self._delete_partition_data(bucket, full_prefix)
+                self._delete_glue_partitions(db, table, partition_columns, values)
+
+            self._write_data_to_s3(grouped_df, bucket, full_prefix, writer, db, table)
+
+        self._repair_table(db, table)
+
+    def _write_unpartitioned_table(self, df: pd.DataFrame, bucket: str, prefix: str, writer, overwrite: bool) -> None:
+        """Handles the logic for writing to an unpartitioned Glue table."""
+        if overwrite:
+            self._delete_partition_data(bucket, prefix)
+
+        self._write_data_to_s3(df, bucket, prefix, writer)
+
+    def _delete_partition_data(self, bucket: str, prefix: str) -> None:
+        """Deletes all files under a specific S3 prefix."""
+        files = S3Utils.get_keys_from_prefix(self.s3_client, bucket, prefix)
+        S3Utils.delete_files(self.s3_client, bucket, files)
+
+    def _delete_glue_partitions(self, db: str, table: str, partition_columns: List[str], values: List[str]) -> None:
+        """Deletes Glue partitions based on column values."""
+        conditions = ' AND '.join(f"{col}={val}" for col, val in zip(partition_columns, values))
+        partitions = self._get_partitions(db, table, conditions)
+
+        for partition in partitions:
+            self.glue_client.delete_partition(DatabaseName=db, TableName=table, PartitionValues=partition['Values'])
+
+    def _write_data_to_s3(self, df: pd.DataFrame, bucket: str, prefix: str, writer, db: Optional[str] = None, table: Optional[str] = None) -> None:
+        """Writes a DataFrame to the specified S3 prefix using the given writer."""
+        s3_path = self._create_s3_path(bucket, prefix)
+        storage_descriptor = self._get_storage_descriptor(db, table) if db and table else None
+        writer.write(df, s3_path, storage_descriptor)
+
+    def _create_partition_path(self, partition_columns: List[str], values: List[str]) -> str:
+        """Creates a partition path string from partition columns and values."""
+        return '/'.join(f"{col}={val}" for col, val in zip(partition_columns, values))
+
+    def _get_storage_descriptor(self, db: str, table: str) -> StorageDescriptorTypeDef:
+        """Fetches the storage descriptor for the specified Glue table."""
+        return self._get_table(db, table)['StorageDescriptor']
+
             
-            s3_path = self._create_s3_path(bucket, prefix)
-            writer = self.OUTPUT_FORMAT_TO_WRITER.get(table['StorageDescriptor']['OutputFormat'])
-            if writer is None:
-                raise ValueError(f'The table have a unsupported output format: {table["StorageDescriptor"]["OutputFormat"]}')
-            writer(df, s3_path)
             
-        
-        
-        
-        
-        
-        
-        
+            
+            
+            
+            
