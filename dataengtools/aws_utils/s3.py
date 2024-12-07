@@ -14,7 +14,7 @@ class S3Utils:
         
         files = []
         for response in response_iterator:
-            for obj in response['Contents']:
+            for obj in response.get('Contents', []):
                 files.append(obj['Key'])
                 
         return files
