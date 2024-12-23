@@ -144,7 +144,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
         partition_columns = metadata.partition_columns
         
         for (partition_values, grouped_df) in df.group_by(*[p.name for p in partition_columns]):
-            partition_name = '/'.join([f'{p.name}={p.data_type}' for p, _ in zip(partition_columns, partition_values)])
+            partition_name = '/'.join([f'{p.name}={v}' for p, v in zip(partition_columns, partition_values)])
             
             if overwrite:
                 bucket, prefix = metadata.location.replace('s3://', '').split('/', 1)
