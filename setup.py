@@ -7,9 +7,10 @@ setup(
     install_requires=[
         'boto3==1.35.76',
         'mypy-boto3==1.35.70',
-        'boto3-stubs[s3,glue,athena]',
+        'boto3-stubs[s3,glue]',
         'pandas==2.2.3',
-        's3fs==0.4.2'
+        's3fs==0.4.2',
+        'polars==1.16.0'
     ],
     author='Guilherme dos Santos Magalhães',
     author_email='silcol455@gmail.com',

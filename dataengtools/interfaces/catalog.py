@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, List
+from typing import List, Optional, TypeVar, Generic
+from dataengtools.interfaces.metadata import TableMetadata, Partition
+
 
 T = TypeVar('T')
+"""Generic type variable"""
 
 class Catalog(Generic[T], ABC):
     @abstractmethod
@@ -9,11 +12,19 @@ class Catalog(Generic[T], ABC):
         pass
     
     @abstractmethod
+    def get_table_metadata(self, db: str, table: str) -> TableMetadata:
+        pass
+    
+    @abstractmethod
+    def get_partitions(self, db: str, table: str, conditions: Optional[str]) -> List[Partition]:
+        pass
+    
+    @abstractmethod
     def read_table(self, db: str, table: str, columns: List[str]) -> T:
         pass
     
     @abstractmethod
-    def read_partitioned_table(self, db: str, table: str, conditions: str) -> T:
+    def read_partitioned_table(self, db: str, table: str, columns: str, conditions: str) -> T:
         pass
     
     @abstractmethod
@@ -21,10 +32,13 @@ class Catalog(Generic[T], ABC):
         pass
     
     @abstractmethod
-    def write_table(self, df: T, db: str, table: str, overwrite: bool) -> None:
+    def write_table(self, df: T, db: str, table: str, overwrite: bool, compreesion: Optional[str] = None) -> None:
         pass
     
     @abstractmethod
     def get_partition_columns(self, db: str, table: str) -> List[str]:
         pass
 
+    @abstractmethod
+    def repair_table(self, db: str, table: str) -> None:
+        pass
