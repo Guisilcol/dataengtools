@@ -154,15 +154,6 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
             filename = str(uuid4()) + '.' + metadata.files_extension
             location = self.get_location(db, table) + '/' + partition_name
             
-
-            # Erase!!!
-            # Create the folder in S3
-            import boto3
-            s3 = boto3.client('s3')
-            s3.put_object(Bucket='datalake-aec41e7c-d019-4ea2-9d9e-29062d0f77c7', Key=('partitioned_table_year_month/year=2001/month=3/'))            
-
-            print('Criou o diretorio no S3')
-
             if metadata.files_extension == 'parquet':
                 grouped_df.write_parquet(location + '/' + filename, compression=compreesion)
                 continue
