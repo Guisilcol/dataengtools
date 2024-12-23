@@ -117,7 +117,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
 
         return df
         
-    def write_table(self, df: pl.DataFrame, db: str, table: str, overwrite: bool, compreesion: Optional[str] = None) -> None:
+    def write_table(self, df: pl.DataFrame, db: str, table: str, overwrite: bool, compreesion: str = 'snappy') -> None:
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
         
         filename = str(uuid4()) + '.' + metadata.files_extension
@@ -131,7 +131,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
                 self.file_handler.delete_files(bucket, files_to_delete)
                 
             if metadata.files_extension == 'parquet':
-                df.write_parquet(location + '/' + filename)
+                df.write_parquet(location + '/' + filename, compression=compreesion)
                 
             if metadata.files_extension == 'csv':
                 df.write_csv(location + '/' + filename, 
@@ -152,7 +152,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
                 self.file_handler.delete_files(bucket, files_to_delete)
             
             filename = str(uuid4()) + '.' + metadata.files_extension
-            location = metadata.location + '/' + partition_name
+            location = self.get_location(db, table) + '/' + partition_name
             
             if metadata.files_extension == 'parquet':
                 grouped_df.write_parquet(location + '/' + filename, compression=compreesion)
