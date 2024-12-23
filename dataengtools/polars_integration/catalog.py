@@ -154,7 +154,15 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
             filename = str(uuid4()) + '.' + metadata.files_extension
             location = self.get_location(db, table) + '/' + partition_name
             
-            print(location, filename)
+
+            # Erase!!!
+            import boto3
+            filepath = location + '/'
+            
+            # Create the folder in S3
+            s3 = boto3.client('s3')
+            s3.put_object(Bucket='datalake-aec41e7c-d019-4ea2-9d9e-29062d0f77c7', Key=(filepath))            
+
             if metadata.files_extension == 'parquet':
                 grouped_df.write_parquet(location + '/' + filename, compression=compreesion)
                 continue
