@@ -41,7 +41,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
     def get_table_metadata(self, db: str, table: str) -> TableMetadata:
         return self.table_metadata_retriver.get_table_metadata(db, table)
     
-    def get_partitions(self, db: str, table: str, conditions: str | None) -> List[Partition]:
+    def get_partitions(self, db: str, table: str, conditions: Optional[str]) -> List[Partition]:
         return self.partition_handler.get_partitions(db, table, conditions)
     
     def read_table(self, db: str, table: str, columns: List[str]) -> pl.DataFrame:
