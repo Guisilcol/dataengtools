@@ -154,10 +154,11 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
             filename = str(uuid4()) + '.' + metadata.files_extension
             location = self.get_location(db, table) + '/' + partition_name
             
+            print(location, filename)
             if metadata.files_extension == 'parquet':
                 grouped_df.write_parquet(location + '/' + filename, compression=compreesion)
                 continue
-                
+
             if metadata.files_extension == 'csv':
                 grouped_df.write_csv(
                     location + '/' + filename,
