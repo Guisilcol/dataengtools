@@ -5,7 +5,7 @@ class Logger(logging.Logger):
     _instance: 'Logger' = None
     _lock: Lock = Lock()
 
-    def __new__(cls, logger_name: str = "dataengtools_logger") -> 'Logger':
+    def __new__(cls, logger_name: str) -> 'Logger':
         with cls._lock:
             if cls._instance is None:
                 cls._instance = super(Logger, cls).__new__(cls)
