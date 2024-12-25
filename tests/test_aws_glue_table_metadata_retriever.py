@@ -85,8 +85,8 @@ class TestAWSGlueTableMetadataRetriver:
         """Test retrieving table metadata successfully."""
         metadata = metadata_retriever.get_table_metadata(test_database, test_table)
 
-        columns = [Column(name='col1', data_type='string'), Column(name='col2', data_type='int')]
-        partition_columns = [Column(name='dt', data_type='string'), Column(name='region', data_type='string')]
+        columns = [Column(name='col1', datatype='string'), Column(name='col2', datatype='int')]
+        partition_columns = [Column(name='dt', datatype='string'), Column(name='region', datatype='string')]
         all_columns = columns + partition_columns
 
         assert metadata.database == test_database

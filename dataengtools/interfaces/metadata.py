@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 class Column:
     name: str
     """It is the name of the column"""
-    data_type: str
+    datatype: str
     """It is a string representation of the type"""
 
 @dataclass

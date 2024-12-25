@@ -5,6 +5,9 @@ from uuid import uuid4
 from dataengtools.interfaces.catalog import Catalog
 from dataengtools.interfaces.metadata import TableMetadata, Partition, PartitionHandler, TableMetadataRetriver
 from dataengtools.interfaces.filesystem import FilesystemOperationsHandler
+from dataengtools.logger import Logger
+
+LOGGER = Logger.get_instance()
 
 class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
     
@@ -102,7 +105,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
                     df
                     .with_columns(
                         pl.lit(None)
-                        .cast(self.GLUE_DATATYPE_TO_POLARS.get(column.data_type, 'object'))
+                        .cast(self.GLUE_DATATYPE_TO_POLARS.get(column.datatype, 'object'))
                         .alias(column.name)
                     )
                 )
@@ -111,7 +114,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
         
         df = df.with_columns([
             pl.col(column.name)
-                .cast(self.GLUE_DATATYPE_TO_POLARS.get(column.data_type, 'object')) 
+                .cast(self.GLUE_DATATYPE_TO_POLARS.get(column.datatype, 'object')) 
             for column in metadata.columns
         ])
 
@@ -119,27 +122,35 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
         
     def write_table(self, df: pl.DataFrame, db: str, table: str, overwrite: bool, compreesion: str = 'snappy') -> None:
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
-        
         filename = str(uuid4()) + '.' + metadata.files_extension
+        
+        LOGGER.info(f'Writting DataFrame in {db}.{table}')
         
         if not metadata.partition_columns:
             location = metadata.location
             
             if overwrite:
+                LOGGER.info(f'Overwrite flag is True. Deleting all {db}.{table} data.')
                 bucket, prefix = metadata.location.replace('s3://', '').split('/', 1)
                 files_to_delete = self.file_handler.get_files(bucket, prefix)
                 self.file_handler.delete_files(bucket, files_to_delete)
-                
+            
+            filepath = location + '/' + filename
+            
+            LOGGER.info(f'Writing DataFrame in {filepath}')
+            
             if metadata.files_extension == 'parquet':
-                df.write_parquet(location + '/' + filename, compression=compreesion)
+                df.write_parquet(filepath, compression=compreesion)
+                return
                 
             if metadata.files_extension == 'csv':
-                df.write_csv(location + '/' + filename, 
+                df.write_csv(filepath, 
                              include_header=metadata.files_have_header, 
                              separator=metadata.columns_separator
                 )
-                
-            return
+                return
+            
+            raise ValueError(f'Unsupported files extension {metadata.files_extension}')
         
         partition_columns = metadata.partition_columns
         
@@ -154,13 +165,17 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
             filename = str(uuid4()) + '.' + metadata.files_extension
             location = self.get_location(db, table) + '/' + partition_name
             
+            filepath = location + '/' + filename
+            
+            LOGGER.info(f'Writing Partitioned DataFrame in {filepath}')
+            
             if metadata.files_extension == 'parquet':
-                grouped_df.write_parquet(location + '/' + filename, compression=compreesion)
+                grouped_df.write_parquet(filepath, compression=compreesion)
                 continue
 
             if metadata.files_extension == 'csv':
                 grouped_df.write_csv(
-                    location + '/' + filename,
+                    filepath,
                     separator=metadata.columns_separator,
                     include_header=metadata.files_have_header
                 )

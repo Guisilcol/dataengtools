@@ -36,8 +36,16 @@ class AWSGlueTableMetadataRetriver(TableMetadataRetriver):
             else:
                 raise e
                 
-        columns = [Column(name = col['Name'], data_type=col['Type']) for col in response['Table']['StorageDescriptor']['Columns']]
-        partition_columns = [Column(name = col['Name'], data_type=col['Type']) for col in response['Table'].get('PartitionKeys', [])]
+        columns = [
+            Column(name = col['Name'], datatype=col['Type']) 
+            for col in response['Table']['StorageDescriptor']['Columns']
+        ]
+        
+        partition_columns = [
+            Column(name = col['Name'], datatype=col['Type']) 
+            for col in response['Table'].get('PartitionKeys', [])
+        ]
+        
         all_columns = columns + partition_columns
         location = response['Table']['StorageDescriptor']['Location']
         

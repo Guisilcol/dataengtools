@@ -52,9 +52,9 @@ class TestDataFrameGlueCatalog:
             database="db",
             table="table",
             location="s3://mock-bucket/mock-path/",
-            columns=[Column(name="col1", data_type="int"), Column(name="col2", data_type="int")],
+            columns=[Column(name="col1", datatype="int"), Column(name="col2", datatype="int")],
             partition_columns=[],
-            all_columns=[Column(name="col1", data_type="int"), Column(name="col2", data_type="int")],
+            all_columns=[Column(name="col1", datatype="int"), Column(name="col2", datatype="int")],
             files_have_header=False,
             files_extension="parquet",
             columns_separator=",",
@@ -158,13 +158,13 @@ class TestDataFrameGlueCatalog:
             table="table",
             location="s3://mock-bucket/mock-path/",
             columns=[
-                Column(name="col1", data_type="int"), 
-                Column(name="col2", data_type="int")
+                Column(name="col1", datatype="int"), 
+                Column(name="col2", datatype="int")
             ],
             partition_columns=[],
             all_columns=[
-                Column(name="col1", data_type="int"), 
-                Column(name="col2", data_type="int")
+                Column(name="col1", datatype="int"), 
+                Column(name="col2", datatype="int")
             ],
             files_have_header=True,
             files_extension="csv",
