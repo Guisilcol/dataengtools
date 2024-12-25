@@ -21,6 +21,9 @@ class Logger(logging.Logger):
             self.addHandler(handler)
             self.setLevel(logging.DEBUG)
             self._initialized = True
+            
+    def info(self, msg: str) -> None:
+        print(f'INFO: {msg}')
 
     @classmethod
     def get_instance(cls, logger_name: str = "dataengtools_logger") -> 'Logger':
