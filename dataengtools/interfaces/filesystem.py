@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from io import TextIOWrapper
 from typing import List
 
 class FilesystemOperationsHandler(ABC):
@@ -6,7 +7,7 @@ class FilesystemOperationsHandler(ABC):
     Abstract base class for handling filesystem operations.
     """
     @abstractmethod
-    def get_files(self, root: str, prefix: str) -> List[str]:
+    def get_filepaths(self, root: str, prefix: str) -> List[str]:
         """
         Retrieve a list of files from the filesystem.
 
@@ -16,11 +17,22 @@ class FilesystemOperationsHandler(ABC):
         """
         pass
 
+    @abstractmethod
     def delete_files(self, root: str, files: List[str]) -> None:
         """
         Delete specified files from the filesystem.
 
         :param root: The root directory.
         :param files: List of file paths to be deleted.
+        """
+        pass
+    
+    @abstractmethod
+    def open_file(self, path: str, mode: str) -> TextIOWrapper:
+        """
+        Open a file in the filesystem.
+
+        :param path: The file path.
+        :param mode: The mode to open the file.
         """
         pass

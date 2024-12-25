@@ -124,7 +124,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
         filename = str(uuid4()) + '.' + metadata.files_extension
         
-        LOGGER.info(f'Writting DataFrame in {db}.{table}')
+        LOGGER.info(f'Writing DataFrame into {db}.{table} table')
         
         if not metadata.partition_columns:
             location = self.get_location(db, table)
@@ -132,26 +132,27 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
             if overwrite:
                 LOGGER.info(f'Overwrite flag is True. Deleting all {db}.{table} data.')
                 bucket, prefix = metadata.location.replace('s3://', '').split('/', 1)
-                files_to_delete = self.file_handler.get_files(bucket, prefix)
+                files_to_delete = self.file_handler.get_filepaths(bucket, prefix)
                 self.file_handler.delete_files(bucket, files_to_delete)
             
             filepath = location + '/' + filename
             
-            LOGGER.info(f'Writing DataFrame in {filepath}')
+            LOGGER.info(f'Writing DataFrame in {filepath} file')
             
-            if metadata.files_extension == 'parquet':
-                df.write_parquet(filepath, compression=compreesion)
-                return
+            with self.file_handler.open(filepath, 'wb') as f:
+                if metadata.files_extension == 'parquet':
+                    df.write_parquet(f, compression=compreesion)
+                    return
+                    
+                if metadata.files_extension == 'csv':
+                    df.write_csv(f, 
+                                include_header=metadata.files_have_header, 
+                                separator=metadata.columns_separator
+                    )
+                    return
                 
-            if metadata.files_extension == 'csv':
-                df.write_csv(filepath, 
-                             include_header=metadata.files_have_header, 
-                             separator=metadata.columns_separator
-                )
-                return
+                raise ValueError(f'Unsupported files extension {metadata.files_extension}')
             
-            raise ValueError(f'Unsupported files extension {metadata.files_extension}')
-        
         partition_columns = metadata.partition_columns
         
         for (partition_values, grouped_df) in df.group_by(*[p.name for p in partition_columns]):
@@ -159,28 +160,29 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
             
             if overwrite:
                 bucket, prefix = metadata.location.replace('s3://', '').split('/', 1)
-                files_to_delete = self.file_handler.get_files(bucket, prefix + '/' + partition_name)
+                files_to_delete = self.file_handler.get_filepaths(bucket, prefix + '/' + partition_name)
                 self.file_handler.delete_files(bucket, files_to_delete)
             
             location = self.get_location(db, table) + '/' + partition_name
             
             filepath = location + '/' + filename
             
-            LOGGER.info(f'Writing Partitioned DataFrame in {filepath}')
+            LOGGER.info(f'Writing Partitioned DataFrame in {filepath} file')
             
-            if metadata.files_extension == 'parquet':
-                grouped_df.write_parquet(filepath, compression=compreesion)
-                continue
+            with self.file_handler.open(filepath, 'wb') as f:
+                if metadata.files_extension == 'parquet':
+                    grouped_df.write_parquet(f, compression=compreesion)
+                    continue
 
-            if metadata.files_extension == 'csv':
-                grouped_df.write_csv(
-                    filepath,
-                    separator=metadata.columns_separator,
-                    include_header=metadata.files_have_header
-                )
-                continue
-            
-            raise ValueError(f'Unsupported files extension {metadata.files_extension}')
+                if metadata.files_extension == 'csv':
+                    grouped_df.write_csv(
+                        f,
+                        separator=metadata.columns_separator,
+                        include_header=metadata.files_have_header
+                    )
+                    continue
+                
+                raise ValueError(f'Unsupported files extension {metadata.files_extension}')
             
     def get_partition_columns(self, db: str, table: str) -> List[str]:
         cols = self.table_metadata_retriver.get_table_metadata(db, table).partition_columns

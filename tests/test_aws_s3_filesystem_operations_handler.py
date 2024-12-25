@@ -59,7 +59,7 @@ def test_bucket(s3_client: S3Client) -> str:
 
 class TestAWSS3FilesystemOperationsHandler:
     
-    def test_get_files_with_prefix(
+    def test_get_filepaths_with_prefix(
         self, 
         s3_handler: AWSS3FilesystemOperationsHandler, 
         test_bucket: str
@@ -71,7 +71,7 @@ class TestAWSS3FilesystemOperationsHandler:
             s3_handler: The S3 operations handler
             test_bucket: Name of the test bucket
         """
-        files: List[str] = s3_handler.get_files(test_bucket, 'prefix1/')
+        files: List[str] = s3_handler.get_filepaths(test_bucket, 'prefix1/')
         
         assert len(files) == 3
         assert 'prefix1/file1.txt' in files
@@ -79,7 +79,7 @@ class TestAWSS3FilesystemOperationsHandler:
         assert 'prefix1/subfolder/file3.txt' in files
         assert 'prefix2/file4.txt' not in files
 
-    def test_get_files_empty_prefix(
+    def test_get_filepaths_empty_prefix(
         self, 
         s3_handler: AWSS3FilesystemOperationsHandler, 
         test_bucket: str
@@ -91,11 +91,11 @@ class TestAWSS3FilesystemOperationsHandler:
             s3_handler: The S3 operations handler
             test_bucket: Name of the test bucket
         """
-        files: List[str] = s3_handler.get_files(test_bucket, '')
+        files: List[str] = s3_handler.get_filepaths(test_bucket, '')
         
         assert len(files) == 4
         
-    def test_get_files_non_existent_prefix(
+    def test_get_filepaths_non_existent_prefix(
         self, 
         s3_handler: AWSS3FilesystemOperationsHandler, 
         test_bucket: str
@@ -107,7 +107,7 @@ class TestAWSS3FilesystemOperationsHandler:
             s3_handler: The S3 operations handler
             test_bucket: Name of the test bucket
         """
-        files: List[str] = s3_handler.get_files(test_bucket, 'nonexistent/')
+        files: List[str] = s3_handler.get_filepaths(test_bucket, 'nonexistent/')
         
         assert len(files) == 0
 
@@ -129,7 +129,7 @@ class TestAWSS3FilesystemOperationsHandler:
         
         s3_handler.delete_files(test_bucket, files_to_delete)
         
-        remaining_files: List[str] = s3_handler.get_files(test_bucket, '')
+        remaining_files: List[str] = s3_handler.get_filepaths(test_bucket, '')
         assert 'prefix1/file1.txt' not in remaining_files
         assert len(remaining_files) == 3
 
@@ -149,7 +149,7 @@ class TestAWSS3FilesystemOperationsHandler:
         
         s3_handler.delete_files(test_bucket, files_to_delete)
         
-        remaining_files: List[str] = s3_handler.get_files(test_bucket, '')
+        remaining_files: List[str] = s3_handler.get_filepaths(test_bucket, '')
         assert 'prefix1/file1.txt' not in remaining_files
         assert 'prefix1/file2.txt' not in remaining_files
         assert len(remaining_files) == 2
@@ -174,7 +174,7 @@ class TestAWSS3FilesystemOperationsHandler:
         
         s3_handler.delete_files(test_bucket, large_file_set)
         
-        remaining_files: List[str] = s3_handler.get_files(test_bucket, 'large/')
+        remaining_files: List[str] = s3_handler.get_filepaths(test_bucket, 'large/')
         assert len(remaining_files) == 0
 
     def test_delete_files_non_existent(
@@ -209,5 +209,5 @@ class TestAWSS3FilesystemOperationsHandler:
         # Should not raise an exception
         s3_handler.delete_files(test_bucket, [])
         
-        remaining_files: List[str] = s3_handler.get_files(test_bucket, '')
+        remaining_files: List[str] = s3_handler.get_filepaths(test_bucket, '')
         assert len(remaining_files) == 4

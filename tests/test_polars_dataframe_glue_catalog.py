@@ -150,7 +150,7 @@ class TestDataFrameGlueCatalog:
         )
 
         mock_file_handler.delete_files.assert_called()
-        mock_file_handler.get_files.assert_called()
+        mock_file_handler.get_filepaths.assert_called()
 
     def test_adapt_frame_to_table_schema(self, glue_catalog: DataFrameGlueCatalog, mock_table_metadata_retriver: MagicMock):
         mock_table_metadata_retriver.get_table_metadata.return_value = TableMetadata(

@@ -1,17 +1,20 @@
 
+from io import TextIOWrapper
 from typing import List
 from mypy_boto3_s3 import S3Client 
 from dataengtools.interfaces.filesystem import FilesystemOperationsHandler
+from s3fs import S3FileSystem
 
 class AWSS3FilesystemOperationsHandler(FilesystemOperationsHandler):
     """
     Implementation of FilesystemOperationsHandler for AWS S3.
     """
     
-    def __init__(self, s3: S3Client) -> None:
+    def __init__(self, s3: S3Client, fs: S3FileSystem) -> None:
         self.s3 = s3
+        self.fs = fs
     
-    def get_files(self, root: str, prefix: str) -> List[str]:
+    def get_filepaths(self, root: str, prefix: str) -> List[str]:
         """
         Retrieve a list of files from the filesystem.
         
@@ -43,3 +46,6 @@ class AWSS3FilesystemOperationsHandler(FilesystemOperationsHandler):
             objects = [{'Key': key} for key in batch]
             
             self.s3.delete_objects(Bucket=root, Delete={'Objects': objects})
+
+    def open_file(self, path: str, mode: str) -> TextIOWrapper:
+        return self.fs.open(path, mode)
