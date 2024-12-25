@@ -184,6 +184,8 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
                 
                 raise ValueError(f'Unsupported files extension {metadata.files_extension}')
             
+        self.repair_table(db, table)
+            
     def get_partition_columns(self, db: str, table: str) -> List[str]:
         cols = self.table_metadata_retriver.get_table_metadata(db, table).partition_columns
         return [c.name for c in cols]
