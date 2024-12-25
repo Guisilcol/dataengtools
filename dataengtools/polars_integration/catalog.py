@@ -139,7 +139,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
             
             LOGGER.info(f'Writing DataFrame in {filepath} file')
             
-            with self.file_handler.open(filepath, 'wb') as f:
+            with self.file_handler.open_file(filepath, 'wb') as f:
                 if metadata.files_extension == 'parquet':
                     df.write_parquet(f, compression=compreesion)
                     return
@@ -169,7 +169,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
             
             LOGGER.info(f'Writing Partitioned DataFrame in {filepath} file')
             
-            with self.file_handler.open(filepath, 'wb') as f:
+            with self.file_handler.open_file(filepath, 'wb') as f:
                 if metadata.files_extension == 'parquet':
                     grouped_df.write_parquet(f, compression=compreesion)
                     continue
