@@ -19,7 +19,7 @@ class Logger(logging.Logger):
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             handler.setFormatter(formatter)
             self.addHandler(handler)
-            self.setLevel(logging.INFO)
+            self.setLevel(logging.DEBUG)
             self._initialized = True
 
     @classmethod
