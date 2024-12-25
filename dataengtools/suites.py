@@ -8,6 +8,7 @@ from dataengtools.interfaces.catalog import Catalog
 from dataengtools.aws.filesystem_handler import AWSS3FilesystemHandler
 from dataengtools.aws.partition_handler import AWSGluePartitionHandler
 from dataengtools.aws.table_metadata_retriver import AWSGlueTableMetadataRetriver
+from dataengtools.aws.datatype_mapping import AWSGlueDataTypeToPolars
 from dataengtools.assets.polars_catalog import PolarsDataFrameCatalog
 
 
@@ -19,7 +20,8 @@ class PolarsSuite():
     ) -> Catalog[DataFrame]:
         return PolarsDataFrameCatalog(
             partition_handler=AWSGluePartitionHandler(glue_client, s3_client),
-            file_handler=AWSS3FilesystemHandler(s3_client, s3_filesystem),
-            table_metadata_retriver=AWSGlueTableMetadataRetriver(glue_client),            
+            filesystem=AWSS3FilesystemHandler(s3_client, s3_filesystem),
+            table_metadata_retriver=AWSGlueTableMetadataRetriver(glue_client),
+            datatype_mapping=AWSGlueDataTypeToPolars()    
         )
         
