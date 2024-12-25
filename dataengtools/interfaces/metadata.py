@@ -43,6 +43,8 @@ class Partition:
     """Location of the partition. Example: s3://bucket/table_name/year=2021/month=01"""
     values: Tuple[str]
     """Partition values. Example: ('2021', '01')"""
+    root: str
+    """Root location of the partition. Example: s3_bucket"""
     raw_metadata: Optional[dict] = None
     """Raw metadata from the catalog. It can be used to store additional information. Example: AWS Glue metadata retrieved from Glue boto3 client"""
     

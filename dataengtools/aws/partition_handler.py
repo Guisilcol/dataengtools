@@ -32,12 +32,15 @@ class AWSGluePartitionHandler(PartitionHandler):
                     name = location[len(base_location):].strip('/')
                 else:
                     name = location
+                    
+                bucket, _ = location.replace('s3://', '').split('/', 1)
 
                 partitions.append(
                     Partition(
                         name=name,
                         location=location,
                         values=values,
+                        root=bucket,
                         raw_metadata=raw_metadata
                     )
                 )

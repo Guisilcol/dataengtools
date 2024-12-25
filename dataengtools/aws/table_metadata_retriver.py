@@ -48,6 +48,8 @@ class AWSGlueTableMetadataRetriver(TableMetadataRetriver):
         
         all_columns = columns + partition_columns
         location = response['Table']['StorageDescriptor']['Location']
+        if location.endswith('/'):
+            location = location[:-1]
         
         serde_params = response['Table']['StorageDescriptor'].get('SerdeInfo', {}).get('Parameters', {})
         

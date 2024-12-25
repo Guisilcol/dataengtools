@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from io import TextIOWrapper
 from typing import List
 
-class FilesystemOperationsHandler(ABC):
+class FilesystemHandler(ABC):
     """
     Abstract base class for handling filesystem operations.
     """

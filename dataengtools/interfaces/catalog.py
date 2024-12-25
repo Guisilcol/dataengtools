@@ -42,3 +42,7 @@ class Catalog(Generic[T], ABC):
     @abstractmethod
     def repair_table(self, db: str, table: str) -> None:
         pass
+    
+    @abstractmethod
+    def delete_partitions(self, db: str, table: str, partitions: List[Partition]) -> None:
+        pass

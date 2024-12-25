@@ -2,12 +2,12 @@
 from io import TextIOWrapper
 from typing import List
 from mypy_boto3_s3 import S3Client 
-from dataengtools.interfaces.filesystem import FilesystemOperationsHandler
+from dataengtools.interfaces.filesystem import FilesystemHandler
 from s3fs import S3FileSystem
 
-class AWSS3FilesystemOperationsHandler(FilesystemOperationsHandler):
+class AWSS3FilesystemHandler(FilesystemHandler):
     """
-    Implementation of FilesystemOperationsHandler for AWS S3.
+    Implementation of FilesystemHandler for AWS S3.
     """
     
     def __init__(self, s3: S3Client, fs: S3FileSystem) -> None:
