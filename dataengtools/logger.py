@@ -8,7 +8,7 @@ class Logger(logging.Logger):
     def __new__(cls, logger_name: str = "dataengtools_logger") -> 'Logger':
         with cls._lock:
             if cls._instance is None:
-                cls._instance = super().__new__(cls, logger_name)
+                cls._instance = super(Logger, cls).__new__(cls)
                 cls._instance._initialize_logger(logger_name)
             return cls._instance
 
