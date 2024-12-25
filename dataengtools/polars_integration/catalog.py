@@ -127,7 +127,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
         LOGGER.info(f'Writting DataFrame in {db}.{table}')
         
         if not metadata.partition_columns:
-            location = metadata.location
+            location = self.get_location(db, table)
             
             if overwrite:
                 LOGGER.info(f'Overwrite flag is True. Deleting all {db}.{table} data.')
@@ -162,7 +162,6 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
                 files_to_delete = self.file_handler.get_files(bucket, prefix + '/' + partition_name)
                 self.file_handler.delete_files(bucket, files_to_delete)
             
-            filename = str(uuid4()) + '.' + metadata.files_extension
             location = self.get_location(db, table) + '/' + partition_name
             
             filepath = location + '/' + filename
