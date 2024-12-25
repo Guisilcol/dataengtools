@@ -7,7 +7,7 @@ from dataengtools.interfaces.metadata import TableMetadata, Partition, Partition
 T = TypeVar('T')
 
 
-class CatalogTemplate(ABC, Catalog[T]):
+class CatalogTemplate(ABC, Generic[T], Catalog[T]):
     """
     Template for a Catalog implementation.
     This class does not implement readin methods on data structures such as DataFrames.
