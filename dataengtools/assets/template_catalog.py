@@ -50,5 +50,3 @@ class CatalogTemplate(Catalog[T], Generic[T], ABC):
         for p in partitions:
             files = self.filesystem.get_filepaths(p.root, p.name)
             self.filesystem.delete_files(p.root, files)
-        
-        self.filesystem.delete_files([p.location for p in partitions])
