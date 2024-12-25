@@ -20,11 +20,11 @@ class Catalog(Generic[T], ABC):
         pass
     
     @abstractmethod
-    def read_table(self, db: str, table: str, columns: List[str]) -> T:
+    def read_table(self, db: str, table: str, columns: Optional[List[str]] = None) -> T:
         pass
     
     @abstractmethod
-    def read_partitioned_table(self, db: str, table: str, columns: str, conditions: str) -> T:
+    def read_partitioned_table(self, db: str, table: str, conditions: str, columns: List[str] = None) -> T:
         pass
     
     @abstractmethod

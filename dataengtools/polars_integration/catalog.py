@@ -47,7 +47,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
     def get_partitions(self, db: str, table: str, conditions: Optional[str]) -> List[Partition]:
         return self.partition_handler.get_partitions(db, table, conditions)
     
-    def read_table(self, db: str, table: str, columns: List[str]) -> pl.DataFrame:
+    def read_table(self, db: str, table: str, columns: Optional[List[str]] = None) -> pl.DataFrame:
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
         
         if metadata.files_extension == 'parquet':
@@ -63,7 +63,7 @@ class DataFrameGlueCatalog(Catalog[pl.DataFrame]):
 
         raise ValueError(f'Unsupported files extension {metadata.files_extension}')
     
-    def read_partitioned_table(self, db: str, table: str, columns: str, conditions: str) -> pl.DataFrame:
+    def read_partitioned_table(self, db: str, table: str, conditions: str, columns: Optional[List[str]] = None) -> pl.DataFrame:
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
         
         if not metadata.partition_columns:
