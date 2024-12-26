@@ -28,4 +28,6 @@ class PolarsSuite():
                 table_metadata_retriver = AWSGlueTableMetadataRetriver(glue_client),
                 datatype_mapping        = AWSGlueDataTypeToPolars()    
             )
+            
+        raise ValueError(f"Invalid type: {type_}'")
     
