@@ -28,7 +28,7 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
         
         filepath = metadata.location + '/**'
-        LOGGER.info(f'Reading table "{db}.{table}" from "{filepath}"')
+        LOGGER.debug(f'Reading table "{db}.{table}" from "{filepath}"')
         
         if metadata.files_extension == 'parquet':
             return pl.read_parquet(filepath, columns=columns)
@@ -51,8 +51,8 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
         
         partitions = self.partition_handler.get_partitions(db, table, conditions)
 
-        LOGGER.info(f'Reading partitioned table "{db}.{table}" with conditions "{conditions}"')
-        LOGGER.info(f'Partitions: {[p.name for p in partitions]}')
+        LOGGER.debug(f'Reading partitioned table "{db}.{table}" with conditions "{conditions}"')
+        LOGGER.debug(f'Partitions: {[p.name for p in partitions]}')
         
         if metadata.files_extension == 'parquet':
             dfs = []
@@ -105,7 +105,7 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
             for column in metadata.columns
         ])
         
-        LOGGER.info(f'Adapted DataFrame to table "{db}.{table}" schema: {df.schema}')
+        LOGGER.debug(f'Adapted DataFrame to table "{db}.{table}" schema: {df.schema}')
 
         return df
         
@@ -114,14 +114,14 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
         filename = str(uuid4()) + '.' + metadata.files_extension
         
         if overwrite:
-            LOGGER.info(f'Truncating table "{db}.{table}"')
+            LOGGER.debug(f'Truncating table "{db}.{table}"')
             self.delete_partitions(db, table, self.get_partitions(db, table, None))
             
         # If the table is not partitioned, write the DataFrame as a single file    
         if not metadata.partition_columns:            
             filepath = location + '/' + filename    
             with self.filesystem.open_file(filepath, 'wb') as f:
-                LOGGER.info(f'Writing table "{db}.{table}" to "{filepath}"')
+                LOGGER.debug(f'Writing table "{db}.{table}" to "{filepath}"')
                 if metadata.files_extension == 'parquet':
                     df.write_parquet(f, compression=compreesion)
                     return
@@ -142,7 +142,7 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
             filepath = location + '/' + filename
             
             with self.filesystem.open_file(filepath, 'wb') as f:
-                LOGGER.info(f'Writing partition "{partition_name}" to "{filepath}"')
+                LOGGER.debug(f'Writing partition "{partition_name}" to "{filepath}"')
                 if metadata.files_extension == 'parquet':
                     grouped_df.write_parquet(f, compression=compreesion)
                     continue

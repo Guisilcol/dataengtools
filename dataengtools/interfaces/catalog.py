@@ -16,7 +16,7 @@ class Catalog(Generic[T], ABC):
         pass
     
     @abstractmethod
-    def get_partitions(self, db: str, table: str, conditions: Optional[str]) -> List[Partition]:
+    def get_partitions(self, db: str, table: str, conditions: Optional[str] = None) -> List[Partition]:
         pass
     
     @abstractmethod
@@ -36,7 +36,7 @@ class Catalog(Generic[T], ABC):
         pass
     
     @abstractmethod
-    def get_partition_columns(self, db: str, table: str) -> List[str]:
+    def get_partitions_columns(self, db: str, table: str) -> List[str]:
         pass
 
     @abstractmethod

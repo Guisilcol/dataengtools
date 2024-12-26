@@ -36,7 +36,7 @@ class CatalogTemplate(Catalog[T], Generic[T], ABC):
     def get_partitions(self, db: str, table: str, conditions: Optional[str]) -> List[Partition]:
         return self.partition_handler.get_partitions(db, table, conditions)
     
-    def get_partition_columns(self, db: str, table: str) -> List[str]:
+    def get_partitions_columns(self, db: str, table: str) -> List[str]:
         cols = self.table_metadata_retriver.get_table_metadata(db, table).partition_columns
         return [c.name for c in cols]
     
@@ -48,9 +48,9 @@ class CatalogTemplate(Catalog[T], Generic[T], ABC):
         partitions = [p for p in partitions if p.location != metadata.location]
         
         for p in partitions:
-            LOGGER.info(f'Getting files to delete from partition {p.name}: root={p.root}, location={p.name}')
+            LOGGER.debug(f'Getting files to delete from partition {p.name}: root={p.root}, location={p.name}')
             files = self.filesystem.get_filepaths(p.root, p.name)
-            LOGGER.info(f"Deleting files from partition {p.name}: {files}")
+            LOGGER.debug(f"Deleting files from partition {p.name}: {files}")
             self.filesystem.delete_files(p.root, files)
             
         self.partition_handler.delete_partitions(db, table, partitions)
