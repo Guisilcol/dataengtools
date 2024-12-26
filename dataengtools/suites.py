@@ -15,10 +15,7 @@ Types = Literal['polars_dataframe_aws']
     
 
 class PolarsSuite():
-    def get_catalog(self,
-                    type_: Types = 'polars_dataframe_aws',
-                    configuration: dict = {},
-    ) -> Catalog[DataFrame]:
+    def get_catalog(self, type_: Types = 'polars_dataframe_aws', configuration: dict = {},) -> Catalog[DataFrame]:
         
         if type_ == 'polars_dataframe_aws':
             glue_client   = configuration.get('glue_client') or boto3.client('glue')
