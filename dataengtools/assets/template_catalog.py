@@ -33,7 +33,7 @@ class CatalogTemplate(Catalog[T], Generic[T], ABC):
     def get_table_metadata(self, db: str, table: str) -> TableMetadata:
         return self.table_metadata_retriver.get_table_metadata(db, table)
     
-    def get_partitions(self, db: str, table: str, conditions: Optional[str]) -> List[Partition]:
+    def get_partitions(self, db: str, table: str, conditions: Optional[str] = None) -> List[Partition]:
         return self.partition_handler.get_partitions(db, table, conditions)
     
     def get_partitions_columns(self, db: str, table: str) -> List[str]:
