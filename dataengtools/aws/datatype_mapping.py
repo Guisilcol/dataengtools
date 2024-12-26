@@ -9,8 +9,8 @@ class AWSGlueDataTypeToPolars(DataTypeMapping[str, pl.DataType]):
         'double': pl.Float64,       # Ajustado para Float64
         'float': pl.Float32,        # Ajustado para Float32
         'boolean': pl.Boolean,      # Ajustado para Boolean
-        'timestamp': pl.Utf8,   # Ajustado para Datetime
-        'date': pl.Utf8,            # Ajustado para Date
+        'timestamp': pl.Datetime,   # Ajustado para Datetime
+        'date': pl.Date,            # Ajustado para Date
         'decimal': pl.Float64,      # Decimal representado como Float64
         'array': pl.List,           # Arrays mapeados para List
         'map': pl.Object,           # Map mapeado para Object
