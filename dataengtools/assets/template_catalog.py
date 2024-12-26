@@ -47,10 +47,10 @@ class CatalogTemplate(Catalog[T], Generic[T], ABC):
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
         partitions = [p for p in partitions if p.location != metadata.location]
         
-        self.partition_handler.delete_partitions(db, table, partitions)
-        
         for p in partitions:
             LOGGER.info(f'Getting files to delete from partition {p.name}: root={p.root}, location={p.name}')
             files = self.filesystem.get_filepaths(p.root, p.name)
             LOGGER.info(f"Deleting files from partition {p.name}: {files}")
             self.filesystem.delete_files(p.root, files)
+            
+        self.partition_handler.delete_partitions(db, table, partitions)
