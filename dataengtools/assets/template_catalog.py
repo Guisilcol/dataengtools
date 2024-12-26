@@ -3,7 +3,9 @@ from typing import List, Optional, TypeVar, Generic
 from dataengtools.interfaces.catalog import Catalog
 from dataengtools.interfaces.filesystem import FilesystemHandler
 from dataengtools.interfaces.metadata import TableMetadata, Partition, PartitionHandler, TableMetadataRetriver
+from dataengtools.logger import Logger
 
+LOGGER = Logger.get_instance()
 T = TypeVar('T')
 
 
@@ -49,4 +51,5 @@ class CatalogTemplate(Catalog[T], Generic[T], ABC):
         
         for p in partitions:
             files = self.filesystem.get_filepaths(p.root, p.name)
+            LOGGER.info(f"Deleting files from partition {p.name}: {files}")
             self.filesystem.delete_files(p.root, files)

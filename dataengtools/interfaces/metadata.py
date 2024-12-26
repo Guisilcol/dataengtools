@@ -80,6 +80,7 @@ class PartitionHandler(ABC):
         """
         pass
     
+    @abstractmethod
     def delete_partitions(self, database: str, table: str, partition: List[Partition]) -> None:
         """
         Delete specified partitions from a table in a database.
@@ -90,6 +91,7 @@ class PartitionHandler(ABC):
         """
         pass
     
+    @abstractmethod
     def repair_table(self, database: str, table: str) -> None:
         """
         Repair the table in the database.

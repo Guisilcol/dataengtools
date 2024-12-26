@@ -36,3 +36,4 @@ class FilesystemHandler(ABC):
         :param mode: The mode to open the file.
         """
         pass
+    
