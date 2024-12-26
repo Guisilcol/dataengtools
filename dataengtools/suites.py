@@ -1,9 +1,8 @@
 
 import boto3
 from polars import DataFrame
-from mypy_boto3_glue import GlueClient
-from mypy_boto3_s3 import S3Client
 from s3fs import S3FileSystem
+from typing import Literal
 from dataengtools.interfaces.catalog import Catalog
 from dataengtools.aws.filesystem_handler import AWSS3FilesystemHandler
 from dataengtools.aws.partition_handler import AWSGluePartitionHandler
@@ -12,16 +11,24 @@ from dataengtools.aws.datatype_mapping import AWSGlueDataTypeToPolars
 from dataengtools.assets.polars_catalog import PolarsDataFrameCatalog
 
 
+Types = Literal['polars_dataframe_aws']
+    
+
 class PolarsSuite():
     def get_catalog(self,
-                    glue_client: GlueClient = boto3.client('glue'), 
-                    s3_client: S3Client = boto3.client('s3'),
-                    s3_filesystem: S3FileSystem = S3FileSystem()
+                    type_: Types = 'polars_dataframe_aws',
+                    configuration: dict = {},
     ) -> Catalog[DataFrame]:
-        return PolarsDataFrameCatalog(
-            partition_handler=AWSGluePartitionHandler(glue_client, s3_client),
-            filesystem=AWSS3FilesystemHandler(s3_client, s3_filesystem),
-            table_metadata_retriver=AWSGlueTableMetadataRetriver(glue_client),
-            datatype_mapping=AWSGlueDataTypeToPolars()    
-        )
+        
+        if type_ == 'polars_dataframe_aws':
+            glue_client = configuration.get('glue_client') or boto3.client('glue')
+            s3_client = configuration.get('s3_client') or boto3.client('s3')
+            s3_filesystem = configuration.get('s3_filesystem') or S3FileSystem()
+            
+            return PolarsDataFrameCatalog(
+                filesystem              = AWSS3FilesystemHandler(s3_client, s3_filesystem),
+                partition_handler       = AWSGluePartitionHandler(glue_client, s3_client),
+                table_metadata_retriver = AWSGlueTableMetadataRetriver(glue_client),
+                datatype_mapping        = AWSGlueDataTypeToPolars()    
+            )
     
