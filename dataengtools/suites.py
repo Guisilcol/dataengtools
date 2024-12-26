@@ -21,8 +21,8 @@ class PolarsSuite():
     ) -> Catalog[DataFrame]:
         
         if type_ == 'polars_dataframe_aws':
-            glue_client = configuration.get('glue_client') or boto3.client('glue')
-            s3_client = configuration.get('s3_client') or boto3.client('s3')
+            glue_client   = configuration.get('glue_client') or boto3.client('glue')
+            s3_client     = configuration.get('s3_client') or boto3.client('s3')
             s3_filesystem = configuration.get('s3_filesystem') or S3FileSystem()
             
             return PolarsDataFrameCatalog(
