@@ -15,6 +15,7 @@ class AWSGluePartitionHandler(PartitionHandler):
         
         table_response = self.glue.get_table(DatabaseName=database, Name=table)
         base_location = table_response['Table']['StorageDescriptor']['Location'].rstrip('/')
+        table_name = table_response['Table']['Name']
         
         if conditions is None:
             pages = paginator.paginate(DatabaseName=database, TableName=table)
@@ -32,6 +33,8 @@ class AWSGluePartitionHandler(PartitionHandler):
                     name = location[len(base_location):].strip('/')
                 else:
                     name = location
+                    
+                name = table_name + '/' + name
                     
                 bucket, _ = location.replace('s3://', '').split('/', 1)
 
