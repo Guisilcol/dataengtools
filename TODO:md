@@ -24,3 +24,8 @@
   - Include usage examples
   - Document API reference
   - Add contributing guidelines
+
+- [ ] Add new providers
+  - Google Cloud Storage
+  - Azure Blob Storage
+  - Others...
