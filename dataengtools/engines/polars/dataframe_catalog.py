@@ -2,16 +2,15 @@ from typing import List, Optional, TypeVar
 import polars as pl
 from uuid import uuid4
 
-from dataengtools.assets.template_catalog import CatalogTemplate
-from dataengtools.interfaces.metadata import PartitionHandler, TableMetadataRetriver
-from dataengtools.interfaces.filesystem import FilesystemHandler
-from dataengtools.interfaces.datatype_mapping import DataTypeMapping
-from dataengtools.logger import Logger
+from dataengtools.engines.polars.base_catalog import CatalogTemplate
+from dataengtools.core.interfaces.integration_layer.catalog_metadata import TableMetadataRetriver, DataTypeMapping
+from dataengtools.core.interfaces.integration_layer.filesystem_handler import FilesystemHandler
+from dataengtools.core.interfaces.integration_layer.catalog_partitions import PartitionHandler
+from dataengtools.utils.logger import Logger
 
 LOGGER = Logger.get_instance()
 
 T = TypeVar('T')
-
 
 class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
     
@@ -27,7 +26,7 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
     def read_table(self, db: str, table: str, columns: Optional[List[str]] = None) -> pl.DataFrame:
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
         
-        filepath = metadata.location + '/**'
+        filepath = metadata.location + '/**/*' + '.' + metadata.files_extension
         LOGGER.debug(f'Reading table "{db}.{table}" from "{filepath}"')
         
         if metadata.files_extension == 'parquet':
@@ -45,32 +44,35 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
     
     def read_partitioned_table(self, db: str, table: str, conditions: str, columns: Optional[List[str]] = None) -> pl.DataFrame:
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
+
+        table_location = self.get_location(db, table)
         
         if not metadata.partition_columns:
             raise ValueError(f'Table "{db}.{table}" is not partitioned')
         
         partitions = self.partition_handler.get_partitions(db, table, conditions)
 
-        LOGGER.debug(f'Reading partitioned table "{db}.{table}" with conditions "{conditions}"')
-        LOGGER.debug(f'Partitions: {[p.name for p in partitions]}')
+        LOGGER.debug(f'Partitions captured in "{db}.{table}" table with conditions "{conditions}": {partitions}')
         
         if metadata.files_extension == 'parquet':
             dfs = []
             for partition in partitions:
-                lf = pl.read_parquet(partition.location + '/**', columns=columns)
-                dfs.append(lf)
+                df = pl.read_parquet(
+                    table_location + '/' + partition + '/**/*' + '.' + metadata.files_extension, 
+                    columns=columns
+                )
+                dfs.append(df)
 
         elif metadata.files_extension == 'csv':
             dfs = []
             for partition in partitions:
-                location = partition.location
-                lf = pl.read_parquet(
-                    location + '/**', 
+                df = pl.read_csv(
+                    table_location + '/' + partition + '/**/*' + '.' + metadata.files_extension, 
                     separator=metadata.columns_separator,
                     has_header=metadata.files_have_header,
                     columns=columns
                 )
-                dfs.append(lf)
+                dfs.append(df)
         
         else:
             raise ValueError(f'Unsupported files extension {metadata.files_extension}')
@@ -99,10 +101,10 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
         df = df.select(*[c.name for c in metadata.all_columns])
         
         # Cast columns to the correct datatype
-        df = df.with_columns([
+        df = df.with_columns(*[
             pl.col(column.name)
                 .cast(self.datatype_mapping.get(column.datatype, pl.Object)) 
-            for column in metadata.columns
+            for column in metadata.all_columns
         ])
         
         LOGGER.debug(f'Adapted DataFrame to table "{db}.{table}" schema: {df.schema}')
@@ -116,10 +118,10 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
         if overwrite:
             LOGGER.debug(f'Truncating table "{db}.{table}"')
             self.delete_partitions(db, table, self.get_partitions(db, table, None))
-            
+
         # If the table is not partitioned, write the DataFrame as a single file    
         if not metadata.partition_columns:            
-            filepath = location + '/' + filename    
+            filepath = metadata.location + '/' + filename    
             with self.filesystem.open_file(filepath, 'wb') as f:
                 LOGGER.debug(f'Writing table "{db}.{table}" to "{filepath}"')
                 if metadata.files_extension == 'parquet':

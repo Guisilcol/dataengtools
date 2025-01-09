@@ -1,1 +1,0 @@
-from dataengtools.interfaces.catalog import Catalog

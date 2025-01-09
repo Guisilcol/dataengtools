@@ -1,15 +1,16 @@
 from abc import ABC
 from typing import List, Optional, TypeVar, Generic
-from dataengtools.interfaces.catalog import Catalog
-from dataengtools.interfaces.filesystem import FilesystemHandler
-from dataengtools.interfaces.metadata import TableMetadata, Partition, PartitionHandler, TableMetadataRetriver
-from dataengtools.logger import Logger
+from dataengtools.core.interfaces.engine_layer.catalog import Catalog
+from dataengtools.core.interfaces.integration_layer.filesystem_handler import FilesystemHandler
+from dataengtools.core.interfaces.integration_layer.catalog_metadata import TableMetadata, TableMetadataRetriver 
+from dataengtools.core.interfaces.integration_layer.catalog_partitions import  Partition, PartitionHandler
+from dataengtools.utils.logger import Logger
 
 LOGGER = Logger.get_instance()
 T = TypeVar('T')
 
 
-class CatalogTemplate(Catalog[T], Generic[T], ABC):
+class CatalogTemplate(Catalog[T], Generic[T]):
     """
     Template for a Catalog implementation.
     This class does not implement readin methods on data structures such as DataFrames.
@@ -45,12 +46,25 @@ class CatalogTemplate(Catalog[T], Generic[T], ABC):
         
     def delete_partitions(self, db: str, table: str, partitions: List[Partition]) -> None:
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
-        partitions = [p for p in partitions if p.location != metadata.location]
-        
+        location = metadata.location
+
         for p in partitions:
-            LOGGER.debug(f'Getting files to delete from partition {p.name}: root={p.root}, location={p.name}')
-            files = self.filesystem.get_filepaths(p.root, p.name)
-            LOGGER.debug(f"Deleting files from partition {p.name}: {files}")
-            self.filesystem.delete_files(p.root, files)
-            
+            LOGGER.debug(f'Getting files to delete from partition {p}')
+            partition_location = f"{location}/{p}"
+            files = self.filesystem.get_files(partition_location)
+            LOGGER.debug(f"Deleting files from partition {p}: {files}")
+            self.filesystem.delete_files(files)
+
         self.partition_handler.delete_partitions(db, table, partitions)
+
+    def read_table(self, db, table, columns = None):
+        raise NotImplementedError("This method should be implemented by a concrete class")
+    
+    def read_partitioned_table(self, db, table, conditions, columns = None):
+        raise NotImplementedError("This method should be implemented by a concrete class")
+    
+    def adapt_frame_to_table_schema(self, df, db, table):
+        raise NotImplementedError("This method should be implemented by a concrete class")
+    
+    def write_table(self, df, db, table, overwrite, compreesion = None):
+        raise NotImplementedError("This method should be implemented by a concrete class")

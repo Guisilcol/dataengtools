@@ -1,6 +1,26 @@
 from mypy_boto3_glue import GlueClient
 from botocore.exceptions import ClientError
-from dataengtools.interfaces.metadata import TableMetadataRetriver, TableMetadata, Column
+import polars as pl
+from dataengtools.core.interfaces.integration_layer.catalog_metadata import TableMetadataRetriver, TableMetadata, Column, DataTypeMapping
+
+
+# TODO: Refactor this code. This module cannot depend on Polars, it needs to be independent
+class AWSGlueDataTypeToPolars(DataTypeMapping[str, pl.DataType]):
+    MAPPING = {
+        'string': pl.Utf8,          # Correto: Texto UTF-8
+        'int': pl.Int64,            # Correto: Inteiro de 64 bits
+        'bigint': pl.Int64,         # Ajustado para Int64 (inteiro de 64 bits)
+        'double': pl.Float64,       # Ajustado para Float64
+        'float': pl.Float32,        # Ajustado para Float32
+        'boolean': pl.Boolean,      # Ajustado para Boolean
+        'timestamp': pl.Datetime,   # Ajustado para Datetime
+        'date': pl.Date,            # Ajustado para Date
+        'decimal': pl.Float64,      # Decimal representado como Float64
+        'array': pl.List,           # Arrays mapeados para List
+        'map': pl.Object,           # Map mapeado para Object
+        'struct': pl.Object,        # Struct mapeado para Object
+        'binary': pl.Binary         # Ajustado para Binary
+    }
 
 class AWSGlueTableMetadataRetriver(TableMetadataRetriver):
     """

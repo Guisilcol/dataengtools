@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, TypeVar, Generic
-from dataengtools.interfaces.metadata import TableMetadata, Partition
+from dataengtools.core.interfaces.integration_layer.catalog_metadata import TableMetadata
+from dataengtools.core.interfaces.integration_layer.catalog_partitions import Partition
 
 
 T = TypeVar('T')
@@ -16,7 +17,7 @@ class Catalog(Generic[T], ABC):
         pass
     
     @abstractmethod
-    def get_partitions(self, db: str, table: str, conditions: Optional[str] = None) -> List[Partition]:
+    def get_partitions(self, db: str, table: str, conditions: Optional[str] = None) -> List[str]:
         pass
     
     @abstractmethod
@@ -44,5 +45,5 @@ class Catalog(Generic[T], ABC):
         pass
     
     @abstractmethod
-    def delete_partitions(self, db: str, table: str, partitions: List[Partition]) -> None:
+    def delete_partitions(self, db: str, table: str, partitions: List[str]) -> None:
         pass
