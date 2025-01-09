@@ -1,3 +1,5 @@
 # TODO 
 
+[ ] - Implement Polars Lazyframe engines 
+[ ] - Implement LOCAL provider
 [ ] - Implement SQL engine using this article as base https://cabeda.medium.com/running-duckdb-on-aws-glue-643b8a1e4deb
