@@ -3,3 +3,5 @@ test.py
 __pycache__
 set_aws_envs.sh
 .pytest_cache
+poetry.lock
+pyproject.toml
