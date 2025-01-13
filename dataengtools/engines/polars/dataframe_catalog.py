@@ -8,11 +8,10 @@ from dataengtools.core.interfaces.integration_layer.filesystem_handler import Fi
 from dataengtools.core.interfaces.integration_layer.catalog_partitions import PartitionHandler
 from dataengtools.utils.logger import Logger
 
-LOGGER = Logger.get_instance()
-
 T = TypeVar('T')
 
 class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
+    logger = Logger.get_instance()
     
     def __init__(self, 
                  partition_handler: PartitionHandler, 
@@ -27,7 +26,8 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
         
         filepath = metadata.location + '/**/*' + '.' + metadata.files_extension
-        LOGGER.debug(f'Reading table "{db}.{table}" from "{filepath}"')
+
+        self.logger.debug(f'Reading table "{db}.{table}" from "{filepath}"')
         
         if metadata.files_extension == 'parquet':
             return pl.read_parquet(filepath, columns=columns)
@@ -52,7 +52,7 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
         
         partitions = self.partition_handler.get_partitions(db, table, conditions)
 
-        LOGGER.debug(f'Partitions captured in "{db}.{table}" table with conditions "{conditions}": {partitions}')
+        self.logger.debug(f'Partitions captured in "{db}.{table}" table with conditions "{conditions}": {partitions}')
         
         if metadata.files_extension == 'parquet':
             dfs = []
@@ -107,8 +107,6 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
             for column in metadata.all_columns
         ])
         
-        LOGGER.debug(f'Adapted DataFrame to table "{db}.{table}" schema: {df.schema}')
-
         return df
         
     def write_table(self, df: pl.DataFrame, db: str, table: str, overwrite: bool, compreesion: str = 'snappy') -> None:
@@ -116,14 +114,18 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
         filename = str(uuid4()) + '.' + metadata.files_extension
         
         if overwrite:
-            LOGGER.debug(f'Truncating table "{db}.{table}"')
+            self.logger.debug(f'Truncating table "{db}.{table}"')
             self.delete_partitions(db, table, self.get_partitions(db, table, None))
+
+        ###############################
+        # Non-partitioned table write #
+        ###############################
 
         # If the table is not partitioned, write the DataFrame as a single file    
         if not metadata.partition_columns:            
             filepath = metadata.location + '/' + filename    
             with self.filesystem.open_file(filepath, 'wb') as f:
-                LOGGER.debug(f'Writing table "{db}.{table}" to "{filepath}"')
+                self.logger.debug(f'Writing table "{db}.{table}" to "{filepath}"')
                 if metadata.files_extension == 'parquet':
                     df.write_parquet(f, compression=compreesion)
                     return
@@ -135,16 +137,20 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
                     return
                 
                 raise ValueError(f'Unsupported files extension {metadata.files_extension}')
-            
-        partition_columns = metadata.partition_columns
         
+        ###########################
+        # Partitioned table write #
+        ###########################
+
+        partition_columns = metadata.partition_columns
         for (partition_values, grouped_df) in df.group_by(*[p.name for p in partition_columns]):
             partition_name = '/'.join([f'{p.name}={v}' for p, v in zip(partition_columns, partition_values)])
             location = self.get_location(db, table) + '/' + partition_name
             filepath = location + '/' + filename
             
             with self.filesystem.open_file(filepath, 'wb') as f:
-                LOGGER.debug(f'Writing partition "{partition_name}" to "{filepath}"')
+                self.logger.debug(f'Writing partition "{partition_name}" to "{filepath}"')
+                
                 if metadata.files_extension == 'parquet':
                     grouped_df.write_parquet(f, compression=compreesion)
                     continue
