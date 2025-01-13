@@ -3,9 +3,7 @@ from dataengtools.core.interfaces.engine_layer.catalog import Catalog
 from dataengtools.core.interfaces.integration_layer.filesystem_handler import FilesystemHandler
 from dataengtools.core.interfaces.integration_layer.catalog_metadata import TableMetadata, TableMetadataRetriver 
 from dataengtools.core.interfaces.integration_layer.catalog_partitions import  Partition, PartitionHandler
-from dataengtools.utils.logger import Logger
 
-LOGGER = Logger.get_instance()
 T = TypeVar('T')
 
 
