@@ -7,6 +7,7 @@ from dataengtools.core.interfaces.engine_layer.catalog import Catalog
 from dataengtools.core.interfaces.engine_layer.filesystem import Filesystem
 from dataengtools.engines.polars.dataframe_catalog import PolarsDataFrameCatalog
 from dataengtools.engines.polars.dataframe_filesystem import PolarsFilesystem
+from dataengtools.engines.polars.lazyframe_catalog import PolarsLazyFrameCatalog
 from dataengtools.providers.aws.glue_catalog_metadata_handler import AWSGlueTableMetadataRetriver, AWSGlueDataTypeToPolars
 from dataengtools.providers.aws.glue_catalog_partitions_handler import AWSGluePartitionHandler
 from dataengtools.providers.aws.s3_filesystem_handler import AWSS3FilesystemHandler
@@ -31,6 +32,18 @@ class EngineFactory:
             s3fs = configuration.get('s3fs') or S3FileSystem()
             
             return PolarsDataFrameCatalog(
+                datatype_mapping=AWSGlueDataTypeToPolars(),
+                filesystem=AWSS3FilesystemHandler(s3fs),
+                partition_handler=AWSGluePartitionHandler(glue_cli, s3_cli),
+                table_metadata_retriver=AWSGlueTableMetadataRetriver(glue_cli)
+            )
+        
+        if provider == 'lazyframe|aws':
+            glue_cli = configuration.get('glue_cli') or boto3.client('glue')
+            s3_cli = configuration.get('s3_cli') or boto3.client('s3')
+            s3fs = configuration.get('s3fs') or S3FileSystem()
+            
+            return PolarsLazyFrameCatalog(
                 datatype_mapping=AWSGlueDataTypeToPolars(),
                 filesystem=AWSS3FilesystemHandler(s3fs),
                 partition_handler=AWSGluePartitionHandler(glue_cli, s3_cli),
