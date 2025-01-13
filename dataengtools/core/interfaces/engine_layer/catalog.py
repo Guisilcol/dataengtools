@@ -17,7 +17,7 @@ class Catalog(Generic[T], ABC):
         pass
     
     @abstractmethod
-    def get_partitions(self, db: str, table: str, conditions: Optional[str] = None) -> List[str]:
+    def get_partitions(self, db: str, table: str, conditions: Optional[str] = None) -> List[Partition]:
         pass
     
     @abstractmethod
@@ -45,5 +45,5 @@ class Catalog(Generic[T], ABC):
         pass
     
     @abstractmethod
-    def delete_partitions(self, db: str, table: str, partitions: List[str]) -> None:
+    def delete_partitions(self, db: str, table: str, partitions: List[Partition]) -> None:
         pass
