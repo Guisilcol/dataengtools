@@ -6,7 +6,9 @@ T = TypeVar('T')
 class FileMetadata(TypedDict):
     """Dictionary type for file metadata."""
     separator: Optional[str]
-    header: Optional[bool]
+    has_header: Optional[bool]
+    skip_rows: Optional[int]
+    n_rows: Optional[int]
     columns: Optional[List[str]]
     encoding: Optional[str]
     compression: Optional[str]

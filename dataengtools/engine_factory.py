@@ -6,8 +6,9 @@ from s3fs import S3FileSystem
 from dataengtools.core.interfaces.engine_layer.catalog import Catalog
 from dataengtools.core.interfaces.engine_layer.filesystem import Filesystem
 from dataengtools.engines.polars.dataframe_catalog import PolarsDataFrameCatalog
-from dataengtools.engines.polars.dataframe_filesystem import PolarsFilesystem
+from dataengtools.engines.polars.dataframe_filesystem import PolarsDataFrameFilesystem
 from dataengtools.engines.polars.lazyframe_catalog import PolarsLazyFrameCatalog
+from dataengtools.engines.polars.lazyframe_filesystem import PolarsLazyFrameFilesystem
 from dataengtools.providers.aws.glue_catalog_metadata_handler import AWSGlueTableMetadataRetriver, AWSGlueDataTypeToPolars
 from dataengtools.providers.aws.glue_catalog_partitions_handler import AWSGluePartitionHandler
 from dataengtools.providers.aws.s3_filesystem_handler import AWSS3FilesystemHandler
@@ -64,6 +65,10 @@ class EngineFactory:
         
         if provider == 'dataframe|aws':
             s3fs = configuration.get('s3fs') or S3FileSystem()
-            return PolarsFilesystem(handler=AWSS3FilesystemHandler(s3fs))
+            return PolarsDataFrameFilesystem(handler=AWSS3FilesystemHandler(s3fs))
+        
+        if provider == 'lazyframe|aws':
+            s3fs = configuration.get('s3fs') or S3FileSystem()
+            return PolarsLazyFrameFilesystem(handler=AWSS3FilesystemHandler(s3fs))
         
         raise NotImplementedError(f'Filesystem engine for provider {provider} is not implemented')

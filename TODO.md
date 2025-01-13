@@ -1,6 +1,6 @@
 # TODO
 
-- [ ] Implement Polars LazyFrame Engines
+- [X] Implement Polars LazyFrame Engines
   - Support lazy evaluation for better memory efficiency
   - Add streaming capabilities
   - Implement optimized query planning
