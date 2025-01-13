@@ -49,10 +49,8 @@ class CatalogTemplate(Catalog[T], Generic[T]):
         location = metadata.location
 
         for p in partitions:
-            LOGGER.debug(f'Getting files to delete from partition {p}')
             partition_location = f"{location}/{p}"
             files = self.filesystem.get_files(partition_location)
-            LOGGER.debug(f"Deleting files from partition {p}: {files}")
             self.filesystem.delete_files(files)
 
         self.partition_handler.delete_partitions(db, table, partitions)
