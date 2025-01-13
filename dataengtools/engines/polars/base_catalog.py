@@ -58,13 +58,13 @@ class CatalogTemplate(Catalog[T], Generic[T]):
         self.partition_handler.delete_partitions(db, table, partitions)
 
     def read_table(self, db, table, columns = None):
-        raise NotImplementedError("This method should be implemented by a concrete class")
+        raise NotImplementedError("This class not have a concrete implementation of this method")
     
     def read_partitioned_table(self, db, table, conditions, columns = None):
-        raise NotImplementedError("This method should be implemented by a concrete class")
+        raise NotImplementedError("This class not have a concrete implementation of this method")
     
     def adapt_frame_to_table_schema(self, df, db, table):
-        raise NotImplementedError("This method should be implemented by a concrete class")
+        raise NotImplementedError("This class not have a concrete implementation of this method")
     
     def write_table(self, df, db, table, overwrite, compreesion = None):
-        raise NotImplementedError("This method should be implemented by a concrete class")
+        raise NotImplementedError("This class not have a concrete implementation of this method")
