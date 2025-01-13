@@ -1,4 +1,3 @@
-from abc import ABC
 from typing import List, Optional, TypeVar, Generic
 from dataengtools.core.interfaces.engine_layer.catalog import Catalog
 from dataengtools.core.interfaces.integration_layer.filesystem_handler import FilesystemHandler
