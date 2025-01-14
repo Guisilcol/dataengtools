@@ -8,7 +8,8 @@ from polars import DataFrame
 from dataengtools.core.interfaces.engine_layer.sql import SQLEngine
 from dataengtools.core.interfaces.integration_layer.catalog_metadata import (
     DatabaseMetadataRetriever,
-    TableMetadataRetriver
+    TableMetadataRetriver,
+    TableMetadata
 )
 from dataengtools.utils.logger import Logger
 
@@ -20,6 +21,7 @@ class FileConfig:
     """Configuration for different file types"""
     extension: str
     query_template: str
+    is_hive_partitioning: bool = False
 
 class DuckDBEngine(SQLEngine[DuckDBPyConnection, DataFrame]):
     """DuckDB engine implementation for handling database operations"""
@@ -31,7 +33,8 @@ class DuckDBEngine(SQLEngine[DuckDBPyConnection, DataFrame]):
                 "SELECT * FROM read_csv("
                     "'{location}/**/*.{extension}', "
                     "delim = '{separator}', "
-                    "header = {has_header}"
+                    "header = {has_header}, "
+                    "hive_partitioning = {is_hive_partitioning}"
                 ")"
             )
         ),
@@ -52,44 +55,49 @@ class DuckDBEngine(SQLEngine[DuckDBPyConnection, DataFrame]):
         self._database_metadata_retriever = database_metadata_retriever
         self._table_metadata_retriever = table_metadata_retriever
 
+        self._configure_connection_to_run_in_aws()
+
+    def _configure_connection_to_run_in_aws(self) -> None:
+        self._connection.sql("SET home_directory='/tmp';")
+        self._connection.sql('CREATE SECRET (TYPE S3, PROVIDER CREDENTIAL_CHAIN)')
+
     def get_connection(self) -> DuckDBPyConnection:
         """Get or create a DuckDB connection"""
-        if not self._connection:
-            self._connection = duckdb.connect(self._connection)
         return self._connection
 
     def _create_schema(self, database_name: str) -> None:
         """Create a database schema if it doesn't exist"""
         create_stmt = f'CREATE SCHEMA IF NOT EXISTS "{database_name}"'
-        LOGGER.info(f"Creating schema: {create_stmt}")
+        LOGGER.info(f"creating schema using the following sql: {create_stmt}")
         self._connection.sql(create_stmt)
 
-    def _get_select_statement(self, table_metadata) -> Optional[str]:
+    def _get_select_statement(self, table_metadata: TableMetadata) -> Optional[str]:
         """Generate SELECT statement based on file type"""
         file_config = self.FILE_CONFIGS.get(table_metadata.files_extension)
         if not file_config:
-            LOGGER.warning(f"Unsupported file extension: {table_metadata.files_extension}")
             return None
 
         return file_config.query_template.format(
             location=table_metadata.location,
             extension=table_metadata.files_extension,
             separator=getattr(table_metadata, 'columns_separator', ','),
-            has_header=getattr(table_metadata, 'files_have_header', True)
+            has_header=getattr(table_metadata, 'files_have_header', True),
+            is_hive_partitioning=len(table_metadata.partition_columns) > 0
         )
 
-    def _create_view(self, database_name: str, table_metadata) -> None:
+    def _create_view(self, database_name: str, table_metadata: TableMetadata) -> None:
         """Create a view for the given table metadata"""
         select_stmt = self._get_select_statement(table_metadata)
         if not select_stmt:
+            LOGGER.warning(f"unsupported file extension: {table_metadata.files_extension}. Skipping SQL to view creation for {table_metadata.database}.{table_metadata.table}")
             return
 
         create_view_stmt = (
-            f'CREATE VIEW IF NOT EXISTS "{database_name}"."{table_metadata.table}"'
+            f'CREATE VIEW IF NOT EXISTS "{database_name}"."{table_metadata.table}" '
             f'AS {select_stmt}'
         )
 
-        LOGGER.info(f"Creating view: {create_view_stmt}")
+        LOGGER.info(f"creating view using the following sql: {create_view_stmt}")
         self._connection.sql(create_view_stmt)
 
     def configure_metadata(self, **kwargs) -> None:
