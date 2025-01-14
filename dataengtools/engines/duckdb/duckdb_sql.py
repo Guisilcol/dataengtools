@@ -1,57 +1,113 @@
-
-
-import duckdb.typing
-from dataengtools.core.interfaces.engine_layer.sql import SQLEngine
-from dataengtools.core.interfaces.integration_layer.catalog_metadata import DatabaseMetadataRetriever, TableMetadataRetriver
+from dataclasses import dataclass
+from typing import Dict, Optional
+import logging
 
 import duckdb
 from duckdb import DuckDBPyConnection
 from polars import DataFrame
+from dataengtools.core.interfaces.engine_layer.sql import SQLEngine
+from dataengtools.core.interfaces.integration_layer.catalog_metadata import (
+    DatabaseMetadataRetriever,
+    TableMetadataRetriver
+)
+from dataengtools.utils.logger import Logger
+
+LOGGER = Logger.get_instance()
+
+
+@dataclass
+class FileConfig:
+    """Configuration for different file types"""
+    extension: str
+    query_template: str
 
 class DuckDBEngine(SQLEngine[DuckDBPyConnection, DataFrame]):
-    def __init__(self, connection: DuckDBPyConnection, database_metadata_retriever: DatabaseMetadataRetriever, table_metadata_retriever: TableMetadataRetriver):
-        self.connection = connection
-        self.database_metadata_retriever = database_metadata_retriever
-        self.table_metadata_retriever = table_metadata_retriever
+    """DuckDB engine implementation for handling database operations"""
+    
+    FILE_CONFIGS = {
+        'csv': FileConfig(
+            extension='csv',
+            query_template=(
+                "SELECT * FROM read_csv("
+                    "'{location}/**/*.{extension}', "
+                    "delim = '{separator}', "
+                    "header = {has_header}"
+                ")"
+            )
+        ),
+        'parquet': FileConfig(
+            extension='parquet',
+            query_template="SELECT * FROM read_parquet('{location}/**/*.{extension}')"
+        )
+    }
 
+    def __init__(
+        self,
+        connection: DuckDBPyConnection,
+        database_metadata_retriever: DatabaseMetadataRetriever,
+        table_metadata_retriever: TableMetadataRetriver
+    ):
+        """Initialize DuckDB engine with necessary components"""
+        self._connection = connection
+        self._database_metadata_retriever = database_metadata_retriever
+        self._table_metadata_retriever = table_metadata_retriever
 
     def get_connection(self) -> DuckDBPyConnection:
-        self.connection = duckdb.connect(self.connection)
-        return self.connection
+        """Get or create a DuckDB connection"""
+        if not self._connection:
+            self._connection = duckdb.connect(self._connection)
+        return self._connection
+
+    def _create_schema(self, database_name: str) -> None:
+        """Create a database schema if it doesn't exist"""
+        create_stmt = f'CREATE SCHEMA IF NOT EXISTS "{database_name}"'
+        LOGGER.info(f"Creating schema: {create_stmt}")
+        self._connection.sql(create_stmt)
+
+    def _get_select_statement(self, table_metadata) -> Optional[str]:
+        """Generate SELECT statement based on file type"""
+        file_config = self.FILE_CONFIGS.get(table_metadata.files_extension)
+        if not file_config:
+            LOGGER.warning(f"Unsupported file extension: {table_metadata.files_extension}")
+            return None
+
+        return file_config.query_template.format(
+            location=table_metadata.location,
+            extension=table_metadata.files_extension,
+            separator=getattr(table_metadata, 'columns_separator', ','),
+            has_header=getattr(table_metadata, 'files_have_header', True)
+        )
+
+    def _create_view(self, database_name: str, table_metadata) -> None:
+        """Create a view for the given table metadata"""
+        select_stmt = self._get_select_statement(table_metadata)
+        if not select_stmt:
+            return
+
+        create_view_stmt = (
+            f'CREATE VIEW IF NOT EXISTS "{database_name}"."{table_metadata.table}"'
+            f'AS {select_stmt}'
+        )
+
+        LOGGER.info(f"Creating view: {create_view_stmt}")
+        self._connection.sql(create_view_stmt)
 
     def configure_metadata(self, **kwargs) -> None:
-        databases = self.database_metadata_retriever.get_all_databases()
-
+        """Configure database metadata and create necessary schemas and views"""
+        databases = self._database_metadata_retriever.get_all_databases()
+        
         for database in databases:
-            create_database_stmt = f'CREATE SCHEMA IF NOT EXISTS "{database.name}"'
-            print('Creating schema:', create_database_stmt)
-            self.connection.execute(create_database_stmt)
+            self._create_schema(database.name)
+            
+            for table_metadata in self._table_metadata_retriever.get_all_tables(database.name):
+                self._create_view(database.name, table_metadata)
 
+    def execute(self, query: str, params: Dict = None) -> None:
+        """Execute a query with optional parameters"""
+        params = params or {}
+        self._connection.sql(query, params=params)
 
-            for table_metadata in self.table_metadata_retriever.get_all_tables(database.name):
-                if table_metadata.files_extension == 'csv':
-                    select_stmt = f"""
-                        SELECT * FROM read_csv(
-                        '{table_metadata.location}/**/*.{table_metadata.files_extension}',
-                        delim = '{table_metadata.columns_separator}',
-                        header = {table_metadata.files_have_header}
-                        )
-
-                    """
-                
-                if table_metadata.files_extension == 'parquet':
-                    select_stmt = f"""
-                        SELECT * FROM read_parquet(
-                        '{table_metadata.location}/**/*.{table_metadata.files_extension}'
-                        )
-                    """
-
-                create_view_stmt = f'CREATE VIEW IF NOT EXISTS "{database.name}".{table_metadata.table} AS {select_stmt}'
-                print('Creating view:', create_view_stmt)
-                self.connection.execute(create_view_stmt)
-
-    def execute(self, query: str, params: dict = {}) -> None:
-        self.connection.execute(query, params)
-
-    def execute_and_fetch(self, query: str, params: dict = {}) -> DataFrame:
-        return self.connection.execute(query, params).pl()
+    def execute_and_fetch(self, query: str, params: Dict = None) -> DataFrame:
+        """Execute a query and return results as a DataFrame"""
+        params = params or {}
+        return self._connection.sql(query, params=params).pl()
