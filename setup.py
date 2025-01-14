@@ -12,6 +12,8 @@ setup(
         "mypy-boto3-s3==1.35.81",
         "polars==1.16.0",
         "s3fs==2024.12.0",
+        "duckdb==1.1.3",
+        "pyarrow==18.1.0"
     ],
     author='Guilherme dos Santos Magalhães',
     author_email='silcol455@gmail.com',
