@@ -58,14 +58,10 @@ class DuckDBEngine(SQLEngine[DuckDBPyConnection, DataFrame]):
         self._configure_connection_to_run_in_aws()
 
     def _configure_connection_to_run_in_aws(self) -> None:
-        self._connection.install_extension
         self._connection.sql("SET home_directory='/tmp';")
         self._connection.sql("SET secret_directory='/tmp/my_secrets_dir';")
         self._connection.sql("SET extension_directory='/tmp/my_extension_dir';")
         self._connection.sql('CREATE SECRET (TYPE S3, PROVIDER CREDENTIAL_CHAIN);')
-
-        
-
 
     def get_connection(self) -> DuckDBPyConnection:
         """Get or create a DuckDB connection"""
