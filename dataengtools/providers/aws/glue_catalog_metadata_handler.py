@@ -1,7 +1,10 @@
+from typing import List
 from mypy_boto3_glue import GlueClient
 from botocore.exceptions import ClientError
 import polars as pl
-from dataengtools.core.interfaces.integration_layer.catalog_metadata import TableMetadataRetriver, TableMetadata, Column, DataTypeMapping
+from dataengtools.core.interfaces.integration_layer.catalog_metadata import (
+    TableMetadataRetriver, TableMetadata, Column, DataTypeMapping, DatabaseMetadata, DatabaseMetadataRetriever
+)
 
 
 # TODO: Refactor this code. This module cannot depend on Polars, it needs to be independent
@@ -39,6 +42,56 @@ class AWSGlueTableMetadataRetriver(TableMetadataRetriver):
     def __init__(self, glue: GlueClient) -> None:
         self.glue = glue
     
+    def _create_table_metadata(self, table: dict) -> TableMetadata:
+        columns = [
+            Column(name=col['Name'], datatype=col['Type']) 
+            for col in table['StorageDescriptor']['Columns']
+        ]
+        
+        partition_columns = [
+            Column(name=col['Name'], datatype=col['Type']) 
+            for col in table.get('PartitionKeys', [])
+        ]
+        
+        all_columns = columns + partition_columns
+        location = table['StorageDescriptor']['Location']
+        if location.endswith('/'):
+            location = location[:-1]
+        
+        serde_params = table['StorageDescriptor'].get('SerdeInfo', {}).get('Parameters', {})
+        
+        columns_separator = serde_params.get('field.delim') or serde_params.get('separatorChar')
+        files_have_header = serde_params.get('skip.header.line.count', '0') != '0'
+        files_extension = self.INPUT_FORMAT_TO_FILE_TYPE.get(table['StorageDescriptor']['InputFormat'], 'unknown')
+        
+        raw_metadata = table
+        source = 'AWS Glue'
+        
+        return TableMetadata(
+            database=table['DatabaseName'],
+            table=table['Name'],
+            columns=columns,
+            partition_columns=partition_columns,
+            all_columns=all_columns,
+            location=location,
+            files_have_header=files_have_header,
+            files_extension=files_extension,
+            columns_separator=columns_separator,
+            raw_metadata=raw_metadata,
+            source=source
+        )
+
+    def get_all_tables(self, database, additional_configs: dict = {}):
+        paginator = self.glue.get_paginator('get_tables')
+        pages = paginator.paginate(DatabaseName=database)
+        
+        tables = []
+        for page in pages:
+            for table in page['TableList']:
+                tables.append(self._create_table_metadata(table))
+        
+        return tables
+
     def get_table_metadata(self, database: str, table: str) -> TableMetadata:
         """
         Retrieve metadata for a specific table in a database.
@@ -50,49 +103,57 @@ class AWSGlueTableMetadataRetriver(TableMetadataRetriver):
         
         try:
             response = self.glue.get_table(DatabaseName=database, Name=table)
+            return self._create_table_metadata(response['Table'])
         except ClientError as e:
             if e.response['Error']['Code'] == 'EntityNotFoundException':
                 raise ValueError(f"Table {table} not found in database {database}") from e
             else:
                 raise e
                 
-        columns = [
-            Column(name = col['Name'], datatype=col['Type']) 
-            for col in response['Table']['StorageDescriptor']['Columns']
+        
+class AWSGlueDatabaseMetadataRetriever(DatabaseMetadataRetriever):
+    """
+    Implementation of DatabaseMetadataRetriver for AWS Glue.
+    """
+    
+    def __init__(self, glue: GlueClient) -> None:
+        self.glue = glue
+        
+    def get_database_metadata(self, database: str) -> DatabaseMetadata:
+        """
+        Retrieve metadata for a specific database.
+
+        :param database: The name of the database.
+        :return: DatabaseMetadata object containing metadata of the database.
+        """
+        response = self.glue.get_database(Name=database)
+
+        tables = self.glue.get_tables(DatabaseName=database)
+        table_names = [table['Name'] for table in tables['TableList']]
+        
+        return DatabaseMetadata(
+            name=database,
+            tables=table_names,
+            raw_metadata=response,
+            source='AWS Glue'
+        )  
+    
+    def get_all_databases(self) -> List[DatabaseMetadata]:
+        """
+        Retrieve a list of all databases.
+
+        :return: List of database names.
+        """
+        response = self.glue.get_databases()
+        return [
+            DatabaseMetadata(
+                name=database['Name'],
+                tables=[table['Name'] for table in self.glue.get_tables(DatabaseName=database['Name'])['TableList']],
+                raw_metadata=database,
+                source='AWS Glue'
+            )
+            for database in response['DatabaseList']
         ]
-        
-        partition_columns = [
-            Column(name = col['Name'], datatype=col['Type']) 
-            for col in response['Table'].get('PartitionKeys', [])
-        ]
-        
-        all_columns = columns + partition_columns
-        location = response['Table']['StorageDescriptor']['Location']
-        if location.endswith('/'):
-            location = location[:-1]
-        
-        serde_params = response['Table']['StorageDescriptor'].get('SerdeInfo', {}).get('Parameters', {})
-        
-        columns_separator = serde_params.get('field.delim') or serde_params.get('separatorChar')
-        files_have_header = serde_params.get('skip.header.line.count', '0') != '0'
-        files_extension = self.INPUT_FORMAT_TO_FILE_TYPE.get(response['Table']['StorageDescriptor']['InputFormat'], 'unknown')
-        
-        raw_metadata = response['Table']
-        source = 'AWS Glue'
-        
-        
-        return TableMetadata(
-            database=database,
-            table=table,
-            columns=columns,
-            partition_columns=partition_columns,
-            all_columns=all_columns,
-            location=location,
-            files_have_header=files_have_header,
-            files_extension=files_extension,
-            columns_separator=columns_separator,
-            raw_metadata=raw_metadata,
-            source=source
-        )
-        
-        
+    
+
+

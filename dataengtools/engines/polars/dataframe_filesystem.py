@@ -4,7 +4,7 @@ from dataengtools.core.interfaces.integration_layer.filesystem_handler import Fi
 from dataengtools.engines.polars.base_filesystem import FilesystemTemplate
 
 class PolarsDataFrameFilesystem(FilesystemTemplate[pl.DataFrame]):
-    """Polars implementation of Filesystem interface."""
+    """Polars implementation of FilesystemEngine interface."""
     
     def __init__(self, handler: FilesystemHandler):
         """Initialize with filesystem handler implementation.

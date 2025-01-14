@@ -1,5 +1,5 @@
 from typing import List, Optional, TypeVar, Generic
-from dataengtools.core.interfaces.engine_layer.catalog import Catalog
+from dataengtools.core.interfaces.engine_layer.catalog import CatalogEngine
 from dataengtools.core.interfaces.integration_layer.filesystem_handler import FilesystemHandler
 from dataengtools.core.interfaces.integration_layer.catalog_metadata import TableMetadata, TableMetadataRetriver 
 from dataengtools.core.interfaces.integration_layer.catalog_partitions import  Partition, PartitionHandler
@@ -7,12 +7,12 @@ from dataengtools.core.interfaces.integration_layer.catalog_partitions import  P
 T = TypeVar('T')
 
 
-class CatalogTemplate(Catalog[T], Generic[T]):
+class CatalogTemplate(CatalogEngine[T], Generic[T]):
     """
-    Template for a Catalog implementation.
+    Template for a CatalogEngine implementation.
     This class does not implement readin methods on data structures such as DataFrames.
     It is meant to be extended by a concrete implementation that will define how to read data.
-    The methods implemented here are meant to be common to all Catalog implementations.
+    The methods implemented here are meant to be common to all CatalogEngine implementations.
     """
     
     def __init__(self, 

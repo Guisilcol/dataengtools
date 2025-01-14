@@ -2,8 +2,48 @@ from dataclasses import dataclass
 from typing import List, Optional, TypeVar, Generic
 from abc import ABC, abstractmethod
 
-K = TypeVar('K')
-V = TypeVar('V')
+#####################
+# Database Metadata #
+#####################
+
+@dataclass
+class DatabaseMetadata:
+    name: str
+    """Database name"""
+    tables: List[str]
+    """List of tables"""
+    raw_metadata: Optional[dict] = None
+    """Raw metadata from the catalog. It can be used to store additional information. Example: AWS Glue metadata retrieved from Glue boto3 client"""
+    source: Optional[str] = None
+    """Source of the database. Example: Glue CatalogEngine, Athena, Redshift, etc"""
+
+class DatabaseMetadataRetriever(ABC):
+    """
+    Abstract base class for retrieving database metadata.
+    """
+
+    @abstractmethod
+    def get_all_databases(self, additional_configs: dict = {}) -> List[DatabaseMetadata]:
+        """
+        Retrieve a list of all databases.
+
+        :return: List of database names.
+        """
+        pass
+
+    @abstractmethod
+    def get_database_metadata(self, database: str, additional_configs: dict = {}) -> DatabaseMetadata:
+        """
+        Retrieve metadata for a specific database.
+
+        :param database: The name of the database.
+        :return: DatabaseMetadata object containing metadata of the database.
+        """
+        pass
+
+##################
+# Table Metadata #
+##################
 
 @dataclass
 class Column:
@@ -35,13 +75,23 @@ class TableMetadata:
     raw_metadata: Optional[dict] = None
     """Raw metadata from the catalog. It can be used to store additional information. Example: AWS Glue metadata retrieved from Glue boto3 client"""
     source: Optional[str] = None
-    """Source of the table. Example: Glue Catalog, Athena, Redshift, etc"""
+    """Source of the table. Example: Glue CatalogEngine, Athena, Redshift, etc"""
 
- 
 class TableMetadataRetriver(ABC):
     """
     Abstract base class for retrieving table metadata.
     """
+
+    @abstractmethod
+    def get_all_tables(self, database: str, additional_configs: dict = {}) -> List[TableMetadata]:
+        """
+        Retrieve a list of all tables in a database.
+
+        :param database: The name of the database.
+        :return: List of TableMetadata objects containing metadata of the tables.
+        """
+        pass
+
     @abstractmethod
     def get_table_metadata(self, database: str, table: str, additional_configs: dict = {}) -> TableMetadata:
         """
@@ -52,6 +102,13 @@ class TableMetadataRetriver(ABC):
         :return: TableMetadata object containing metadata of the table.
         """
         pass
+
+#####################
+# Data Type Mapping #
+#####################
+
+K = TypeVar('K')
+V = TypeVar('V')
 
 class DataTypeMapping(ABC, Generic[K, V]):
     MAPPING = {}

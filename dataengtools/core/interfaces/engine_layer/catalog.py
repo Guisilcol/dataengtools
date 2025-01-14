@@ -7,7 +7,7 @@ from dataengtools.core.interfaces.integration_layer.catalog_partitions import Pa
 T = TypeVar('T')
 """Generic type variable"""
 
-class Catalog(Generic[T], ABC):
+class CatalogEngine(Generic[T], ABC):
     @abstractmethod
     def get_location(self, db: str, table: str) -> str:
         pass

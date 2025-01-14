@@ -14,7 +14,7 @@ class FileMetadata(TypedDict):
     compression: Optional[str]
     hive_partitioning: Optional[bool]
 
-class Filesystem(ABC, Generic[T]):
+class FilesystemEngine(ABC, Generic[T]):
     """Abstract interface for filesystem operations.
     
     Args:

@@ -1,11 +1,11 @@
 from typing import List, TypeVar
-from dataengtools.core.interfaces.engine_layer.filesystem import Filesystem, FileMetadata
+from dataengtools.core.interfaces.engine_layer.filesystem import FilesystemEngine, FileMetadata
 from dataengtools.core.interfaces.integration_layer.filesystem_handler import FilesystemHandler
 
 Frame = TypeVar('Frame')
 
-class FilesystemTemplate(Filesystem[Frame]):
-    """Polars implementation of Filesystem interface."""
+class FilesystemTemplate(FilesystemEngine[Frame]):
+    """Polars implementation of FilesystemEngine interface."""
     
     def __init__(self, handler: FilesystemHandler):
         """Initialize with filesystem handler implementation.
