@@ -57,7 +57,7 @@ class DuckDBEngine(SQLEngine[DuckDBPyConnection, DataFrame]):
 
         self._configure_connection_to_run_in_aws()
 
-    def _configure_connection_to_run_in_aws(self) -> None:
+    def _configure_connection_to_run_in_aws(self) -> None:        
         self._connection.sql("SET home_directory='/tmp';")
         self._connection.sql("SET secret_directory='/tmp/my_secrets_dir';")
         self._connection.sql("SET extension_directory='/tmp/my_extension_dir';")

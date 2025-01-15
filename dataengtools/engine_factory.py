@@ -81,9 +81,10 @@ class EngineFactory:
             raise ValueError('Provider is required')
         
         if provider == 'duckdb|aws':
+            glue_cli = configuration.get('glue_cli') or boto3.client('glue')
             connection = configuration.get('connection') or duckdb.connect(':memory:')
-            database_metadata_retriever = configuration.get('database_metadata_retriever') or AWSGlueDatabaseMetadataRetriever(boto3.client('glue'))
-            table_metadata_retriever = configuration.get('table_metadata_retriever') or AWSGlueTableMetadataRetriver(boto3.client('glue'))
+            database_metadata_retriever = configuration.get('database_metadata_retriever') or AWSGlueDatabaseMetadataRetriever(glue_cli)
+            table_metadata_retriever = configuration.get('table_metadata_retriever') or AWSGlueTableMetadataRetriver(glue_cli)
             return DuckDBEngine(connection, database_metadata_retriever, table_metadata_retriever)
         
         raise NotImplementedError(f'SQLEngine engine for provider {provider} is not implemented')

@@ -147,7 +147,7 @@ class PolarsDataFrameCatalog(CatalogTemplate[pl.DataFrame]):
             partition_name = '/'.join([f'{p.name}={v}' for p, v in zip(partition_columns, partition_values)])
             location = self.get_location(db, table) + '/' + partition_name
             filepath = location + '/' + filename
-            
+
             with self.filesystem.open_file(filepath, 'wb') as f:
                 self.logger.debug(f'Writing partition "{partition_name}" to "{filepath}"')
                 
