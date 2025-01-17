@@ -40,7 +40,6 @@ class AWSS3FilesystemHandler(FilesystemHandler):
             prefix (str): The prefix to filter files
             additional_configs (dict): Additional configurations for S3 listing
                 Supported configs:
-                - detail (bool): Whether to return detailed information
                 - pattern (str): Pattern to filter files
                 
         Returns:
@@ -49,17 +48,12 @@ class AWSS3FilesystemHandler(FilesystemHandler):
         prefix = self._normalize_s3_path(prefix)
         
         # Extract configs with defaults
-        detail = additional_configs.get('detail', False)
         pattern = additional_configs.get('pattern', None)
         
         try:
             # List files from S3
-            files = self.fs.ls(prefix, detail=detail)
-            
-            # If detail=True, files will be a list of dicts
-            if detail:
-                files = [f['name'] for f in files if f['type'] == 'file']
-            
+            files = self.fs.find(prefix, withdirs=False)
+                        
             # Apply pattern filter if provided
             if pattern:
                 pattern = re.compile(pattern)
