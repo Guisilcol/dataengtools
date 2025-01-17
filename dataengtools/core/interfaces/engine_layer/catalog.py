@@ -45,5 +45,14 @@ class CatalogEngine(Generic[T], ABC):
         pass
     
     @abstractmethod
-    def delete_partitions(self, db: str, table: str, partitions: List[Partition]) -> None:
+    def delete_partitions(self, db: str, table: str, partitions: Optional[List[Partition]] = None) -> None:
+        """
+        Delete partitions from a table. If partitions is None, all partitions and ONLY files in partitions will be deleted. Files that are not in partitions will not be deleted.
+        """
+        pass
+
+    def truncate_table(self, db: str, table: str) -> None:
+        """
+        Truncate a table. If table is partitioned, all partitions and files in table location will be deleted.
+        """
         pass

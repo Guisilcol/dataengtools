@@ -41,9 +41,12 @@ class CatalogTemplate(CatalogEngine[T], Generic[T]):
     def repair_table(self, db: str, table: str) -> None:
         self.partition_handler.repair_table(db, table)
         
-    def delete_partitions(self, db: str, table: str, partitions: List[Partition]) -> None:
+    def delete_partitions(self, db: str, table: str, partitions: Optional[List[Partition]] = None) -> None:
         metadata = self.table_metadata_retriver.get_table_metadata(db, table)
         location = metadata.location
+
+        if not partitions:
+            partitions = self.partition_handler.get_partitions(db, table)
 
         for p in partitions:
             partition_location = f"{location}/{p}"
@@ -51,6 +54,15 @@ class CatalogTemplate(CatalogEngine[T], Generic[T]):
             self.filesystem.delete_files(files)
 
         self.partition_handler.delete_partitions(db, table, partitions)
+
+    def truncate_table(self, db: str, table: str) -> None:
+        metadata = self.table_metadata_retriver.get_table_metadata(db, table)
+
+        if metadata.partition_columns:
+            self.delete_partitions(db, table)
+        
+        files = self.filesystem.get_files(metadata.location)
+        self.filesystem.delete_files(files)
 
     def read_table(self, db, table, columns = None):
         raise NotImplementedError("This class not have a concrete implementation of this method")
