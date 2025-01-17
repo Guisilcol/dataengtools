@@ -4,10 +4,10 @@ from dataengtools.core.interfaces.integration_layer.catalog_metadata import Tabl
 from dataengtools.core.interfaces.integration_layer.catalog_partitions import Partition
 
 
-T = TypeVar('T')
+Frame = TypeVar('Frame')
 """Generic type variable"""
 
-class CatalogEngine(Generic[T], ABC):
+class CatalogEngine(Generic[Frame], ABC):
     @abstractmethod
     def get_location(self, db: str, table: str) -> str:
         pass
@@ -21,19 +21,19 @@ class CatalogEngine(Generic[T], ABC):
         pass
     
     @abstractmethod
-    def read_table(self, db: str, table: str, columns: Optional[List[str]] = None) -> T:
+    def read_table(self, db: str, table: str, columns: Optional[List[str]] = None) -> Frame:
         pass
     
     @abstractmethod
-    def read_partitioned_table(self, db: str, table: str, conditions: str, columns: List[str] = None) -> T:
+    def read_partitioned_table(self, db: str, table: str, conditions: str, columns: List[str] = None) -> Frame:
         pass
     
     @abstractmethod
-    def adapt_frame_to_table_schema(self, df: T, db: str, table: str) -> T:
+    def adapt_frame_to_table_schema(self, df: Frame, db: str, table: str) -> Frame:
         pass
     
     @abstractmethod
-    def write_table(self, df: T, db: str, table: str, overwrite: bool, compreesion: Optional[str] = None) -> None:
+    def write_table(self, df: Frame, db: str, table: str, overwrite: bool, compreesion: Optional[str] = None) -> None:
         pass
     
     @abstractmethod

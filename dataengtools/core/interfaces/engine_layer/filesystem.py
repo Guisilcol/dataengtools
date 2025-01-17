@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar, List, Generic, TypedDict, Optional
 
-T = TypeVar('T')
+Frame = TypeVar('Frame')
 
 class FileMetadata(TypedDict):
     """Dictionary type for file metadata."""
@@ -14,11 +14,11 @@ class FileMetadata(TypedDict):
     compression: Optional[str]
     hive_partitioning: Optional[bool]
 
-class FilesystemEngine(ABC, Generic[T]):
+class FilesystemEngine(ABC, Generic[Frame]):
     """Abstract interface for filesystem operations.
     
     Args:
-        T: Generic type for the data structure returned by read_file
+        Frame: Generic type for the data structure returned by read_file
     """
     
     @abstractmethod
@@ -46,7 +46,7 @@ class FilesystemEngine(ABC, Generic[T]):
         pass
         
     @abstractmethod
-    def read_files(self, prefix: str, filetype: str, file_metadata: FileMetadata = {}) -> T:
+    def read_files(self, prefix: str, filetype: str, file_metadata: FileMetadata = {}) -> Frame:
         """Read a file and return its contents in specified format.
         
         Args:
@@ -55,6 +55,6 @@ class FilesystemEngine(ABC, Generic[T]):
             filetype: Type/format of the file (e.g. 'parquet', 'csv')
             
         Returns:
-            File contents in the specified generic type T
+            File contents in the specified generic type Frame
         """
         pass

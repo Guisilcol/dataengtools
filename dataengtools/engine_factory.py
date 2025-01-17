@@ -13,9 +13,10 @@ from dataengtools.engines.polars.dataframe_filesystem import PolarsDataFrameFile
 from dataengtools.engines.polars.lazyframe_catalog import PolarsLazyFrameCatalog
 from dataengtools.engines.polars.lazyframe_filesystem import PolarsLazyFrameFilesystem
 from dataengtools.engines.duckdb.duckdb_sql import DuckDBEngine
-from dataengtools.providers.aws.glue_catalog_metadata_handler import AWSGlueTableMetadataRetriver, AWSGlueDataTypeToPolars, AWSGlueDatabaseMetadataRetriever
+from dataengtools.providers.aws.glue_catalog_metadata_handler import AWSGlueTableMetadataRetriver, AWSGlueDataTypeToPolars
 from dataengtools.providers.aws.glue_catalog_partitions_handler import AWSGluePartitionHandler
 from dataengtools.providers.aws.s3_filesystem_handler import AWSS3FilesystemHandler
+from dataengtools.providers.aws.glue_sql_provider_configurator import GlueSQLProviderConfigurator
 
 ProviderType = Literal['dataframe|aws', 'lazyframe|aws']
 
@@ -107,24 +108,28 @@ class EngineFactory:
         
         raise NotImplementedError(f'FilesystemEngine engine for provider {provider} is not implemented')
 
-    def get_sql_engine(self, provider: Literal['duckdb|aws'], configuration: dict = {}) -> SQLEngine:
+
+    @overload
+    def get_sql_engine(self, provider: Literal['duckdb|aws'], configuration: dict = {}) -> SQLEngine[DuckDBPyConnection, pl.DataFrame]:
         """
         Configuration is a dictionary that can contain the following
 
         keys:
-            - glue_cli: boto3.client('glue') instance
+
             - connection: duckdb.DuckDBPyConnection instance
-            - database_metadata_retriever: DatabaseMetadataRetriever instance
-            - table_metadata_retriever: TableMetadataRetriver instance
         """
+        pass
+
+
+    def get_sql_engine(self, provider: str, configuration: dict = {}) -> SQLEngine:
         if provider == None:
             raise ValueError('Provider is required')
         
         if provider == 'duckdb|aws':
-            glue_cli = configuration.get('glue_cli') or boto3.client('glue')
             connection = configuration.get('connection') or duckdb.connect(':memory:')
-            database_metadata_retriever = configuration.get('database_metadata_retriever') or AWSGlueDatabaseMetadataRetriever(glue_cli)
-            table_metadata_retriever = configuration.get('table_metadata_retriever') or AWSGlueTableMetadataRetriver(glue_cli)
-            return DuckDBEngine(connection, database_metadata_retriever, table_metadata_retriever)
-        
+            return DuckDBEngine(
+                connection=connection, 
+                provider_configurator=GlueSQLProviderConfigurator()
+            )
+
         raise NotImplementedError(f'SQLEngine engine for provider {provider} is not implemented')
