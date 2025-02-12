@@ -5,3 +5,7 @@ set_aws_envs.sh
 .pytest_cache
 poetry.lock
 pyproject.toml
+data_gen.py
+test.py
+input_data
+output_data
