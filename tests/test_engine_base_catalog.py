@@ -2,7 +2,7 @@ from typing import List
 import pytest
 from unittest.mock import Mock
 
-from dataengtools.engines.polars.base_catalog import CatalogTemplate
+from dataengtools.io.polars.base_catalog import CatalogTemplate
 from dataengtools.core.interfaces.integration_layer.filesystem_handler import FilesystemHandler
 from dataengtools.core.interfaces.integration_layer.catalog_metadata import (
     TableMetadata, 

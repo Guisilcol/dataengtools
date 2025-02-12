@@ -1,4 +1,4 @@
-from dataengtools.engines.polars.dataframe_catalog import PolarsDataFrameCatalog
+from dataengtools.io.polars.dataframe_catalog import PolarsDataFrameCatalog
 import pytest
 import polars as pl
 from unittest.mock import Mock, patch

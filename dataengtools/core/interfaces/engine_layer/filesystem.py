@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import TypeVar, List, Generic, TypedDict, Optional
+from typing import TypeVar, List, Generic, TypedDict, Optional, Generator
 
-Frame = TypeVar('Frame')
+ResultSet = TypeVar('ResultSet')
 
-class FileMetadata(TypedDict):
+class FileMetadata(TypedDict, total=False):
     """Dictionary type for file metadata."""
     separator: Optional[str]
     has_header: Optional[bool]
@@ -14,13 +14,7 @@ class FileMetadata(TypedDict):
     compression: Optional[str]
     hive_partitioning: Optional[bool]
 
-class FilesystemEngine(ABC, Generic[Frame]):
-    """Abstract interface for filesystem operations.
-    
-    Args:
-        Frame: Generic type for the data structure returned by read_file
-    """
-    
+class FilesystemEngine(ABC, Generic[ResultSet]):
     @abstractmethod
     def get_files(self, prefix: str) -> List[str]:
         """List all files under a path with given prefix.
@@ -46,7 +40,7 @@ class FilesystemEngine(ABC, Generic[Frame]):
         pass
         
     @abstractmethod
-    def read_files(self, prefix: str, filetype: str, file_metadata: FileMetadata = {}) -> Frame:
+    def read_files(self, prefix: str, filetype: str, file_metadata: FileMetadata = {}) -> ResultSet:
         """Read a file and return its contents in specified format.
         
         Args:
@@ -58,3 +52,6 @@ class FilesystemEngine(ABC, Generic[Frame]):
             File contents in the specified generic type Frame
         """
         pass
+
+    def read_files_batched(self, prefix: str, filetype: str, file_metadata: FileMetadata = {}) -> Generator[ResultSet, None, None]:
+        raise NotImplementedError("This class not have a concrete implementation of this method")

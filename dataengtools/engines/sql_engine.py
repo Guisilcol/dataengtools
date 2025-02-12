@@ -1,4 +1,4 @@
-from duckdb import DuckDBPyConnection
+from duckdb import DuckDBPyConnection, DuckDBPyRelation
 from polars import DataFrame
 from dataengtools.core.interfaces.engine_layer.sql import SQLEngine, SQLProviderConfigurator
 from dataengtools.utils.logger import Logger
@@ -6,7 +6,7 @@ from dataengtools.utils.logger import Logger
 LOGGER = Logger.get_instance()
 
 
-class DuckDBEngine(SQLEngine[DuckDBPyConnection, DataFrame]):
+class DuckDBSQLEngine(SQLEngine[DuckDBPyConnection, DuckDBPyRelation]):
     """DuckDB engine implementation for handling database operations"""
 
     def __init__(
@@ -32,7 +32,7 @@ class DuckDBEngine(SQLEngine[DuckDBPyConnection, DataFrame]):
         params = params or {}
         self._connection.sql(query, params=params)
 
-    def execute_and_fetch(self, query: str, params: dict = {}) -> DataFrame:
+    def execute_and_fetch(self, query: str, params: dict = {}) -> DuckDBPyRelation:
         """Execute a query and return results as a DataFrame"""
         params = params or {}
-        return self._connection.sql(query, params=params).pl()
+        return self._connection.sql(query, params=params)

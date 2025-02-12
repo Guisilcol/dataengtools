@@ -13,7 +13,7 @@ class PartitionHandler(ABC):
     Abstract base class for handling table partitions.
     """
     @abstractmethod
-    def get_partitions(self, database: str, table: str, conditions: Optional[str], additional_configs: dict = {}) -> List[Partition]:
+    def get_partitions(self, database: str, table: str, conditions: Optional[str] = None, additional_configs: dict = {}) -> List[Partition]:
         """
         Retrieve partitions for a specific table in a database.
 

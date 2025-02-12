@@ -7,16 +7,16 @@ from pathlib import Path
 
 from dataengtools.core.interfaces.engine_layer.filesystem import FileMetadata
 from dataengtools.core.interfaces.integration_layer.filesystem_handler import FilesystemHandler
-from dataengtools.engines.polars.dataframe_filesystem import PolarsFilesystem 
+from dataengtools.io.polars.dataframe_filesystem import PolarsDataFrameFilesystem 
 
-class TestPolarsFilesystem:
+class TestPolarsDataFrameFilesystem:
     @pytest.fixture
     def handler_mock(self):
         return Mock(spec=FilesystemHandler)
         
     @pytest.fixture
     def filesystem(self, handler_mock):
-        return PolarsFilesystem(handler_mock)
+        return PolarsDataFrameFilesystem(handler_mock)
         
     @pytest.fixture
     def temp_dir(self):

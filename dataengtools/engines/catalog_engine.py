@@ -1,29 +1,25 @@
-from typing import List, Optional, TypeVar, Generic
+from typing import Generator, List, Optional, Any
 from dataengtools.core.interfaces.engine_layer.catalog import CatalogEngine
 from dataengtools.core.interfaces.integration_layer.filesystem_handler import FilesystemHandler
 from dataengtools.core.interfaces.integration_layer.catalog_metadata import TableMetadata, TableMetadataRetriver 
 from dataengtools.core.interfaces.integration_layer.catalog_partitions import  Partition, PartitionHandler
+from dataengtools.core.interfaces.io.reader import Reader
 
-T = TypeVar('T')
+from duckdb import DuckDBPyRelation
 
 
-class CatalogTemplate(CatalogEngine[T], Generic[T]):
-    """
-    Template for a CatalogEngine implementation.
-    This class does not implement readin methods on data structures such as DataFrames.
-    It is meant to be extended by a concrete implementation that will define how to read data.
-    The methods implemented here are meant to be common to all CatalogEngine implementations.
-    """
-    
+class DuckDBCatalogEngine(CatalogEngine[DuckDBPyRelation, Any]):    
     def __init__(self, 
                  partition_handler: PartitionHandler, 
                  table_metadata_retriver: TableMetadataRetriver,
-                 filesystem: FilesystemHandler
+                 filesystem: FilesystemHandler,
+                 reader: Reader[DuckDBPyRelation]
     ):
         self.partition_handler = partition_handler
         self.table_metadata_retriver = table_metadata_retriver
         self.filesystem = filesystem
-    
+        self.reader = reader
+        
     def get_location(self, db: str, table: str) -> str:
         location = self.table_metadata_retriver.get_table_metadata(db, table).location
         return location.rstrip("/")
@@ -64,14 +60,56 @@ class CatalogTemplate(CatalogEngine[T], Generic[T]):
         files = self.filesystem.get_files(metadata.location)
         self.filesystem.delete_files(files)
 
-    def read_table(self, db, table, columns = None):
-        raise NotImplementedError("This class not have a concrete implementation of this method")
+    def read_table(
+        self,         
+        db: str, 
+        table: str, 
+        condition: Optional[str], 
+        columns: Optional[List[str]] = None
+    ) -> DuckDBPyRelation:
+        metadata = self.get_table_metadata(db, table)
+        
+        data, _ = self.reader.read(
+            path=metadata.location,
+            columns=columns,
+            file_type=metadata.files_extension,
+            delimiter=metadata.columns_separator,
+            have_header=metadata.files_have_header,
+            condition=condition
+        )
+        return data
     
-    def read_partitioned_table(self, db, table, conditions, columns = None):
-        raise NotImplementedError("This class not have a concrete implementation of this method")
-    
-    def adapt_frame_to_table_schema(self, df, db, table):
-        raise NotImplementedError("This class not have a concrete implementation of this method")
+    def read_table_batched(
+        self,
+        db: str, 
+        table: str, 
+        condition: Optional[str], 
+        columns: Optional[List[str]] = None, 
+        order_by: Optional[List[str]] = None,
+        batch_size: int = 10000
+    ) -> Generator[DuckDBPyRelation, None, None]:
+        metadata = self.get_table_metadata(db, table)
+        
+        current_offset = 0
+        while True:
+            batch, count = self.reader.read(
+                path=metadata.location,
+                columns=columns,
+                file_type=metadata.files_extension,
+                delimiter=metadata.columns_separator,
+                have_header=metadata.files_have_header,
+                condition=condition,
+                offset=current_offset,
+                limit=batch_size,
+                order_by=order_by
+            )
+            
+            if count == 0:
+                break
+            
+            yield batch
+            current_offset += batch_size
     
     def write_table(self, df, db, table, overwrite, compreesion = None):
         raise NotImplementedError("This class not have a concrete implementation of this method")
+
