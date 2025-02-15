@@ -1,13 +1,10 @@
 from typing import Literal, overload, Any
-from polars import DataFrame
 import boto3
 from s3fs import S3FileSystem
 import duckdb
-from duckdb import DuckDBPyRelation
 
 from dataengtools.core.interfaces.engine_layer.catalog import CatalogEngine
 from dataengtools.core.interfaces.engine_layer.filesystem import FilesystemEngine
-from dataengtools.core.interfaces.engine_layer.sql import SQLEngine
 from dataengtools.providers.aws.glue_catalog_metadata_handler import AWSGlueTableMetadataRetriver
 from dataengtools.providers.aws.glue_catalog_partitions_handler import AWSGluePartitionHandler
 from dataengtools.providers.aws.s3_filesystem_handler import AWSS3FilesystemHandler
@@ -49,13 +46,12 @@ class EngineFactory:
             s3_cli = configuration.get('s3_cli') or boto3.client('s3') # type: ignore
             s3fs = configuration.get('s3fs') or S3FileSystem()
             connection = configuration.get('connection') or duckdb.connect(':memory:')
-            sql_configurator = GlueSQLProviderConfigurator()
 
             return DuckDBCatalogEngine(
                 partition_handler=AWSGluePartitionHandler(glue_cli, s3_cli),
                 table_metadata_retriver=AWSGlueTableMetadataRetriver(glue_cli),
                 filesystem=AWSS3FilesystemHandler(s3fs),
-                reader=DuckDBReader(connection, sql_configurator)
+                reader=DuckDBReader(connection, GlueSQLProviderConfigurator())
             )
         
         raise NotImplementedError(f'CatalogEngine engine for provider {provider} is not implemented')
@@ -85,7 +81,9 @@ class EngineFactory:
         if provider == 'duckdb|aws':
             s3fs = configuration.get('s3fs') or S3FileSystem()
             connection = configuration.get('connection') or duckdb.connect(':memory:')
-            sql_configurator = GlueSQLProviderConfigurator()
-            return DuckDBFilesystemEngine(AWSS3FilesystemHandler(s3fs), DuckDBReader(connection, sql_configurator))
+            return DuckDBFilesystemEngine(
+                AWSS3FilesystemHandler(s3fs), 
+                DuckDBReader(connection, GlueSQLProviderConfigurator())
+            )
         
         raise NotImplementedError(f'Filesystem engine for provider {provider} is not implemented')
