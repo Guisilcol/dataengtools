@@ -124,6 +124,6 @@ class AWSS3FilesystemHandler(FilesystemHandler):
                 encoding=encoding,
                 compression=compression,
                 buffer_size=buffer_size
-            )
+            ) # type: ignore
         except Exception as e:
             raise Exception(f"Error opening file from S3") from e
