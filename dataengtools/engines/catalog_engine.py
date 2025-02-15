@@ -93,7 +93,7 @@ class PolarsCatalogEngine(DuckDBCatalogEngine):
         ...
 
     @overload
-    def read_table(self, db: str, table: str, condition: None, *, batch_size: int = 1000, columns: Optional[List[str]] = None) -> Generator[DataFrame, None, None]:
+    def read_table(self, db: str, table: str, condition: None, *, batch_size: int = 100_000, columns: Optional[List[str]] = None) -> Generator[DataFrame, None, None]:
         ...
 
     def read_table(
@@ -102,12 +102,12 @@ class PolarsCatalogEngine(DuckDBCatalogEngine):
         table: str, 
         condition: Optional[str] = None, 
         *, 
-        batch_size: int = 1000, 
+        batch_size: int = 100_000, 
         columns: Optional[List[str]] = None
     ) -> Any:
         data = super().read_table(db, table, condition, columns)
-        
-        if condition is None:
+
+        if batch_size:
             for batch in data.record_batch(batch_size):
                 yield from_arrow(batch)
 
