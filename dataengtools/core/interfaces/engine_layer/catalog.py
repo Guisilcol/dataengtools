@@ -32,18 +32,6 @@ class CatalogEngine(Generic[ResultSet, Frame], ABC):
         pass
     
     @abstractmethod
-    def read_table_batched(
-        self, 
-        db: str, 
-        table: str, 
-        condition: Optional[str], 
-        columns: Optional[List[str]] = None, 
-        order_by: Optional[List[str]] = None,
-        batch_size: int = 10000
-    ) -> Generator[ResultSet, None, None]:
-        pass
-
-    @abstractmethod
     def write_table(
         self, 
         df: Frame, 

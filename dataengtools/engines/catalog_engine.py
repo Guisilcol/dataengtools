@@ -68,47 +68,17 @@ class DuckDBCatalogEngine(CatalogEngine[DuckDBPyRelation, Any]):
         columns: Optional[List[str]] = None
     ) -> DuckDBPyRelation:
         metadata = self.get_table_metadata(db, table)
-        
-        data, _ = self.reader.read(
-            path=metadata.location,
-            columns=columns,
-            file_type=metadata.files_extension,
-            delimiter=metadata.columns_separator,
-            have_header=metadata.files_have_header,
-            condition=condition
+        data = self.reader.read(
+            metadata.location,
+            {
+                "columns": columns,
+                "file_type": metadata.files_extension,
+                "separator": metadata.columns_separator,
+                "has_header": metadata.files_have_header,
+                "condition": condition
+            }
         )
         return data
-    
-    def read_table_batched(
-        self,
-        db: str, 
-        table: str, 
-        condition: Optional[str], 
-        columns: Optional[List[str]] = None, 
-        order_by: Optional[List[str]] = None,
-        batch_size: int = 10000
-    ) -> Generator[DuckDBPyRelation, None, None]:
-        metadata = self.get_table_metadata(db, table)
-        
-        current_offset = 0
-        while True:
-            batch, count = self.reader.read(
-                path=metadata.location,
-                columns=columns,
-                file_type=metadata.files_extension,
-                delimiter=metadata.columns_separator,
-                have_header=metadata.files_have_header,
-                condition=condition,
-                offset=current_offset,
-                limit=batch_size,
-                order_by=order_by
-            )
-            
-            if count == 0:
-                break
-            
-            yield batch
-            current_offset += batch_size
     
     def write_table(self, df, db, table, overwrite, compreesion = None):
         raise NotImplementedError("This class not have a concrete implementation of this method")
