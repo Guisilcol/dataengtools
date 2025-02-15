@@ -1,4 +1,4 @@
-from typing import Generator, List, Optional, Any
+from typing import Generator, List, Optional, Any, overload
 from dataengtools.core.interfaces.engine_layer.catalog import CatalogEngine
 from dataengtools.core.interfaces.integration_layer.filesystem_handler import FilesystemHandler
 from dataengtools.core.interfaces.integration_layer.catalog_metadata import TableMetadata, TableMetadataRetriver 
@@ -6,6 +6,7 @@ from dataengtools.core.interfaces.integration_layer.catalog_partitions import  P
 from dataengtools.core.interfaces.io.reader import Reader
 
 from duckdb import DuckDBPyRelation
+from polars import DataFrame, from_arrow
 
 
 class DuckDBCatalogEngine(CatalogEngine[DuckDBPyRelation, Any]):    
@@ -83,3 +84,32 @@ class DuckDBCatalogEngine(CatalogEngine[DuckDBPyRelation, Any]):
     def write_table(self, df, db, table, overwrite, compreesion = None):
         raise NotImplementedError("This class not have a concrete implementation of this method")
 
+
+
+class PolarsCatalogEngine(DuckDBCatalogEngine):
+
+    @overload
+    def read_table(self, db: str, table: str, condition: str, *, columns: Optional[List[str]] = None) -> DataFrame:
+        ...
+
+    @overload
+    def read_table(self, db: str, table: str, condition: None, *, batch_size: int = 1000, columns: Optional[List[str]] = None) -> Generator[DataFrame, None, None]:
+        ...
+
+    def read_table(
+        self, 
+        db: str, 
+        table: str, 
+        condition: Optional[str] = None, 
+        *, 
+        batch_size: int = 1000, 
+        columns: Optional[List[str]] = None
+    ) -> Any:
+        data = super().read_table(db, table, condition, columns)
+        
+        if condition is None:
+            for batch in data.record_batch(batch_size):
+                yield from_arrow(batch)
+
+        else:
+            return data.pl()
