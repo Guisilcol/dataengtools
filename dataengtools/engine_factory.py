@@ -12,12 +12,27 @@ from dataengtools.providers.aws.glue_sql_provider_configurator import GlueSQLPro
 
 from dataengtools.engines.catalog_engine import DuckDBCatalogEngine
 from dataengtools.engines.filesystem_engine import DuckDBFilesystemEngine
+from dataengtools.engines.sql_engine import DuckDBSQLEngine
 from dataengtools.io.duckdb_io.reader import DuckDBReader
 
 
 ProviderType = Literal['duckdb|aws', 'dataframe|aws']
 
 class EngineFactory:
+
+    @staticmethod
+    def get_sql_engine(provider: str = 'duckdb|aws', configuration: dict = {}) -> DuckDBSQLEngine:
+        if provider == 'duckdb|aws':
+            connection = configuration.get('connection') or duckdb.connect(':memory:')
+    
+            return DuckDBSQLEngine(
+                connection,
+                GlueSQLProviderConfigurator()
+            )
+        
+        raise NotImplementedError(f'SQL engine for provider {provider} is not implemented')
+
+
     @staticmethod
     @overload
     def get_catalog_engine(provider: Literal['duckdb|aws'], configuration: dict = {}) -> DuckDBCatalogEngine:

@@ -1,6 +1,6 @@
 from duckdb import DuckDBPyConnection, DuckDBPyRelation
-from polars import DataFrame
-from dataengtools.core.interfaces.engine_layer.sql import SQLEngine, SQLProviderConfigurator
+from dataengtools.core.interfaces.engine_layer.sql import SQLEngine
+from dataengtools.core.interfaces.integration_layer.sql_configurator import SQLProviderConfigurator
 from dataengtools.utils.logger import Logger
 
 LOGGER = Logger.get_instance()
