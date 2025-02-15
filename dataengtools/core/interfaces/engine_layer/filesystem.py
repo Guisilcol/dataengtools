@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import TypeVar, List, Generic, TypedDict, Optional, Generator
+from typing import TypeVar, List, Generic, TypedDict, Optional
+from dataengtools.core.interfaces.io.reader import ReaderOptions
 
 ResultSet = TypeVar('ResultSet')
 
@@ -40,7 +41,7 @@ class FilesystemEngine(ABC, Generic[ResultSet]):
         pass
         
     @abstractmethod
-    def read_files(self, prefix: str, filetype: str, file_metadata: FileMetadata = {}) -> ResultSet:
+    def read_files(self, prefix: str, reader_options: ReaderOptions = {}) -> ResultSet:
         """Read a file and return its contents in specified format.
         
         Args:
@@ -52,6 +53,3 @@ class FilesystemEngine(ABC, Generic[ResultSet]):
             File contents in the specified generic type Frame
         """
         pass
-
-    def read_files_batched(self, prefix: str, filetype: str, file_metadata: FileMetadata = {}) -> Generator[ResultSet, None, None]:
-        raise NotImplementedError("This class not have a concrete implementation of this method")
