@@ -11,9 +11,10 @@ from dataengtools.providers.aws.s3_filesystem_handler import AWSS3FilesystemHand
 from dataengtools.providers.aws.glue_sql_provider_configurator import GlueSQLProviderConfigurator
 
 from dataengtools.engines.catalog_engine import DuckDBCatalogEngine
-from dataengtools.engines.filesystem_engine import DuckDBFilesystemEngine
+from dataengtools.engines.filesystem_engine import DuckDBFilesystemEngine, PolarsFilesystemEngine
 from dataengtools.engines.sql_engine import DuckDBSQLEngine
 from dataengtools.io.duckdb_io.reader import DuckDBReader
+from dataengtools.io.duckdb_io.writer import DuckDBWriter
 
 
 ProviderType = Literal['duckdb|aws', 'dataframe|aws']
@@ -84,7 +85,7 @@ class EngineFactory:
 
     @staticmethod
     @overload
-    def get_filesystem_engine(provider: Literal['dataframe|aws'], configuration: dict = {}) -> Any:
+    def get_filesystem_engine(provider: Literal['dataframe|aws'], configuration: dict = {}) -> PolarsFilesystemEngine:
         """
             Configuration is a dictionary that can contain the following keys:
                 - s3fs: s3fs.S3FileSystem instance
@@ -98,7 +99,17 @@ class EngineFactory:
             connection = configuration.get('connection') or duckdb.connect(':memory:')
             return DuckDBFilesystemEngine(
                 AWSS3FilesystemHandler(s3fs), 
-                DuckDBReader(connection, GlueSQLProviderConfigurator())
+                DuckDBReader(connection, GlueSQLProviderConfigurator()),
+                DuckDBWriter(connection, GlueSQLProviderConfigurator())
             )
         
+        if provider == 'dataframe|aws':
+            s3fs = configuration.get('s3fs') or S3FileSystem()
+            connection = configuration.get('connection') or duckdb.connect(':memory:')
+            return PolarsFilesystemEngine(
+                AWSS3FilesystemHandler(s3fs), 
+                DuckDBReader(connection, GlueSQLProviderConfigurator()),
+                DuckDBWriter(connection, GlueSQLProviderConfigurator())
+            )
+
         raise NotImplementedError(f'Filesystem engine for provider {provider} is not implemented')

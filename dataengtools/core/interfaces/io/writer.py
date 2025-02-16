@@ -3,25 +3,21 @@ from typing import Optional, List, TypeVar, Generic, TypedDict
 
 ResultSet = TypeVar('ResultSet')
 
-class ReaderOptions(TypedDict, total=False):
+class WriterOptions(TypedDict, total=False):
     """Dictionary type for reader metadata."""
     separator: Optional[str]
     file_type: Optional[str]
     columns: Optional[List[str]]
-    condition: Optional[str]
     order_by: Optional[List[str]]
-    offset: Optional[int]
-    limit: Optional[int]
     has_header: Optional[bool]
-    skip_rows: Optional[int]
-    n_rows: Optional[int]
-    encoding: Optional[str]
-    hive_partitioning: Optional[bool]
+    compression: Optional[str]
+    partition_by: Optional[List[str]]
+    file_type: Optional[str]
+    mode: Optional[str]
 
-
-class Reader(Generic[ResultSet], ABC):
+class Writer(Generic[ResultSet], ABC):
 
     @abstractmethod
-    def read(self, path: str, writer_options: ReaderOptions = {}) -> ResultSet:
+    def write(self, data: ResultSet, path: str, writer_options: WriterOptions = {}) -> None:
         pass
 

@@ -2,7 +2,7 @@ from dataengtools.core.interfaces.io.reader import Reader, ReaderOptions
 from dataengtools.io.duckdb_io.string_builder import StringBuilder
 from dataengtools.core.interfaces.integration_layer.sql_configurator import SQLProviderConfigurator
 from duckdb import DuckDBPyRelation, DuckDBPyConnection
-from typing import Optional, List, Tuple
+from typing import Optional
 
 class DuckDBReader(Reader[DuckDBPyRelation]):
     def __init__(self, connection: DuckDBPyConnection, sql_configurator: SQLProviderConfigurator[DuckDBPyConnection]):
