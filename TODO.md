@@ -10,7 +10,7 @@
   - Local metadata storage
   - Testing environment setup
 
-- [ ] DuckDB SQL Engine Integration 
+- [X] DuckDB SQL Engine Integration 
   - AWS Glue compatibility layer
   - Parquet/CSV native support
   - Performance optimizations for AWS
