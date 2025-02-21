@@ -20,9 +20,29 @@ from dataengtools.io.duckdb_io.writer import DuckDBWriter
 ProviderType = Literal['duckdb|aws', 'dataframe|aws']
 
 class EngineFactory:
+    """
+    EngineFactory is a factory class that provides methods to instantiate engine objects for SQL, catalog,
+    and filesystem operations. Depending on the given provider and configuration, it returns the appropriate
+    engine instance for interacting with DuckDB, AWS Glue, and S3.
+    """
 
     @staticmethod
     def get_sql_engine(provider: str = 'duckdb|aws', configuration: dict = {}) -> DuckDBSQLEngine:
+        """
+        Creates and returns a SQL engine based on the provided provider and configuration.
+
+        Parameters:
+            provider (str): The provider type (default: 'duckdb|aws').
+            configuration (dict): A dictionary that can include:
+                - connection: a duckdb connection instance. If not provided, an in-memory DuckDB connection is used.
+
+        Returns:
+            DuckDBSQLEngine: An instance of DuckDBSQLEngine configured with the specified connection and
+            a GlueSQLProviderConfigurator for AWS Glue integration.
+
+        Raises:
+            NotImplementedError: If the provider is not implemented.
+        """
         if provider == 'duckdb|aws':
             connection = configuration.get('connection') or duckdb.connect(':memory:')
     
@@ -38,10 +58,15 @@ class EngineFactory:
     @overload
     def get_catalog_engine(provider: Literal['duckdb|aws'], configuration: dict = {}) -> DuckDBCatalogEngine:
         """
-            Configuration is a dictionary that can contain the following keys:
-                - glue_cli: boto3.client('glue') instance
-                - s3_cli: boto3.client('s3') instance
-                - s3fs: s3fs.S3FileSystem instance
+        Creates and returns a catalog engine for the 'duckdb|aws' provider.
+
+        Configuration dictionary may contain the following keys:
+            - glue_cli: boto3.client('glue') instance.
+            - s3_cli: boto3.client('s3') instance.
+            - s3fs: s3fs.S3FileSystem instance.
+
+        Returns:
+            DuckDBCatalogEngine: An engine for handling catalog operations in AWS Glue using DuckDB.
         """
         pass
 
@@ -49,17 +74,40 @@ class EngineFactory:
     @overload
     def get_catalog_engine(provider: Literal['dataframe|aws'], configuration: dict = {}) -> Any:
         """
-            Configuration is a dictionary that can contain the following keys:
-                - glue_cli: boto3.client('glue') instance
-                - s3_cli: boto3.client('s3') instance
-                - s3fs: s3fs.S3FileSystem instance
+        Creates and returns a catalog engine for the 'dataframe|aws' provider.
+
+        Configuration dictionary may contain the following keys:
+            - glue_cli: boto3.client('glue') instance.
+            - s3_cli: boto3.client('s3') instance.
+            - s3fs: s3fs.S3FileSystem instance.
+
+        Returns:
+            Any: An engine instance for handling catalog operations for the dataframe AWS provider.
         """
+        pass
 
     @staticmethod
     def get_catalog_engine(provider: ProviderType, configuration: dict = {}) -> CatalogEngine:
+        """
+        Creates and returns a catalog engine based on the provided provider and configuration.
+
+        Parameters:
+            provider (ProviderType): Either 'duckdb|aws' or 'dataframe|aws'.
+            configuration (dict): A dictionary that can include:
+                - glue_cli: boto3.client('glue') instance.
+                - s3_cli: boto3.client('s3') instance.
+                - s3fs: s3fs.S3FileSystem instance.
+                - connection: duckdb connection instance (for DuckDBCatalogEngine).
+
+        Returns:
+            CatalogEngine: An appropriate catalog engine instance.
+
+        Raises:
+            NotImplementedError: If the provider engine is not implemented.
+        """
         if provider == 'duckdb|aws':
-            glue_cli = configuration.get('glue_cli') or boto3.client('glue') # type: ignore
-            s3_cli = configuration.get('s3_cli') or boto3.client('s3') # type: ignore
+            glue_cli = configuration.get('glue_cli') or boto3.client('glue')  # type: ignore
+            s3_cli = configuration.get('s3_cli') or boto3.client('s3')  # type: ignore
             s3fs = configuration.get('s3fs') or S3FileSystem()
             connection = configuration.get('connection') or duckdb.connect(':memory:')
 
@@ -77,9 +125,14 @@ class EngineFactory:
     @overload
     def get_filesystem_engine(provider: Literal['duckdb|aws'], configuration: dict = {}) -> DuckDBFilesystemEngine:
         """
-            Configuration is a dictionary that can contain the following keys:
-                - s3fs: s3fs.S3FileSystem instance
-                - connection: duckdb.DuckDBPyConnection instance
+        Creates and returns a filesystem engine for the 'duckdb|aws' provider.
+
+        Configuration dictionary may contain the following keys:
+            - s3fs: s3fs.S3FileSystem instance.
+            - connection: duckdb.DuckDBPyConnection instance.
+
+        Returns:
+            DuckDBFilesystemEngine: An engine for handling filesystem operations using DuckDB and AWS S3.
         """
         pass
 
@@ -87,18 +140,46 @@ class EngineFactory:
     @overload
     def get_filesystem_engine(provider: Literal['dataframe|aws'], configuration: dict = {}) -> PolarsFilesystemEngine:
         """
-            Configuration is a dictionary that can contain the following keys:
-                - s3fs: s3fs.S3FileSystem instance
-                - connection: duckdb.DuckDBPyConnection instance
+        Creates and returns a filesystem engine for the 'dataframe|aws' provider.
+
+        Configuration dictionary may contain the following keys:
+            - s3fs: s3fs.S3FileSystem instance.
+            - reader_connection: duckdb.DuckDBPyConnection instance for reading.
+            - writer_connection: duckdb.DuckDBPyConnection instance for writing.
+
+        Returns:
+            PolarsFilesystemEngine: An engine for handling filesystem operations using Polars,
+            DuckDB for I/O and AWS S3.
         """
+        pass
 
     @staticmethod
     def get_filesystem_engine(provider: str, configuration: dict = {}) -> FilesystemEngine:
+        """
+        Creates and returns a filesystem engine based on the provided provider and configuration.
+
+        Parameters:
+            provider (str): The provider type (e.g., 'duckdb|aws' or 'dataframe|aws').
+            configuration (dict): A dictionary that can include:
+                For 'duckdb|aws':
+                    - s3fs: s3fs.S3FileSystem instance.
+                    - connection: duckdb.DuckDBPyConnection instance.
+                For 'dataframe|aws':
+                    - s3fs: s3fs.S3FileSystem instance.
+                    - reader_connection: duckdb.DuckDBPyConnection instance for reading.
+                    - writer_connection: duckdb.DuckDBPyConnection instance for writing.
+
+        Returns:
+            FilesystemEngine: An appropriate filesystem engine instance configured for AWS S3 operations.
+        
+        Raises:
+            NotImplementedError: If the provider filesystem engine is not implemented.
+        """
         if provider == 'duckdb|aws':
             s3fs = configuration.get('s3fs') or S3FileSystem()
             connection = configuration.get('connection') or duckdb.connect(':memory:')
-            # It is important that DuckDBReader and DuckDBWriter receive a same connection,
-            # because if you try to register a relation from a connection to another, it will raise an error.
+            # It is important that DuckDBReader and DuckDBWriter receive the same connection,
+            # because attempting to register a relation from one connection to another can raise an error.
             return DuckDBFilesystemEngine(
                 AWSS3FilesystemHandler(s3fs), 
                 DuckDBReader(connection, GlueSQLProviderConfigurator()),
@@ -112,7 +193,6 @@ class EngineFactory:
             # It is important that DuckDBReader and DuckDBWriter receive separate connections,
             # because if you try to write a dataframe read in batches using the same connection,
             # all subsequent batches after the write operation will be lost. Reason for this is unknown.
-
             return PolarsFilesystemEngine(
                 AWSS3FilesystemHandler(s3fs), 
                 DuckDBReader(reader_connection, GlueSQLProviderConfigurator()),

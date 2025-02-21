@@ -7,29 +7,38 @@ from dataengtools.core.interfaces.integration_layer.catalog_metadata import (
 )
 
 
-# TODO: Refactor this code. This module cannot depend on Polars, it needs to be independent
 class AWSGlueDataTypeToPolars(DataTypeMapping[str, pl.DataType]):
+    """
+    Maps AWS Glue data type strings to Polars data types.
+
+    This class defines a static mapping dictionary (MAPPING) that converts
+    string representations of AWS Glue data types into corresponding Polars data types.
+    """
     MAPPING = {
-        'string': pl.Utf8,          # Correto: Texto UTF-8
-        'int': pl.Int64,            # Correto: Inteiro de 64 bits
-        'bigint': pl.Int64,         # Ajustado para Int64 (inteiro de 64 bits)
-        'double': pl.Float64,       # Ajustado para Float64
-        'float': pl.Float32,        # Ajustado para Float32
-        'boolean': pl.Boolean,      # Ajustado para Boolean
-        'timestamp': pl.Datetime,   # Ajustado para Datetime
-        'date': pl.Date,            # Ajustado para Date
-        'decimal': pl.Float64,      # Decimal representado como Float64
-        'array': pl.List,           # Arrays mapeados para List
-        'map': pl.Object,           # Map mapeado para Object
-        'struct': pl.Object,        # Struct mapeado para Object
-        'binary': pl.Binary         # Ajustado para Binary
+        'string': pl.Utf8,          # UTF-8 text
+        'int': pl.Int64,            # 64-bit integer
+        'bigint': pl.Int64,         # Adjusted to Int64 (64-bit integer)
+        'double': pl.Float64,       # Adjusted to Float64
+        'float': pl.Float32,        # Adjusted to Float32
+        'boolean': pl.Boolean,      # Adjusted to Boolean
+        'timestamp': pl.Datetime,   # Adjusted to Datetime
+        'date': pl.Date,            # Adjusted to Date
+        'decimal': pl.Float64,      # Represented as Float64
+        'array': pl.List,           # Arrays mapped to List
+        'map': pl.Object,           # Maps mapped to Object
+        'struct': pl.Object,        # Structs mapped to Object
+        'binary': pl.Binary         # Adjusted to Binary
     }
+
 
 class AWSGlueTableMetadataRetriver(TableMetadataRetriver):
     """
-    Implementation of TableMetadataRetriver for AWS Glue.
+    Retrieves table metadata from AWS Glue.
+
+    This implementation uses the AWS Glue API to fetch table details, and then
+    converts the raw table information into a standardized TableMetadata structure.
     """
-    
+
     INPUT_FORMAT_TO_FILE_TYPE = {
         'org.apache.hadoop.mapred.TextInputFormat': 'csv',
         'org.apache.hadoop.mapred.SequenceFileInputFormat': 'sequence',
@@ -40,9 +49,24 @@ class AWSGlueTableMetadataRetriver(TableMetadataRetriver):
     }
     
     def __init__(self, glue: GlueClient) -> None:
+        """
+        Initialize the metadata retriever with a GlueClient instance.
+
+        Parameters:
+            glue (GlueClient): A boto3 client for AWS Glue.
+        """
         self.glue = glue
     
     def _create_table_metadata(self, table: dict) -> TableMetadata:
+        """
+        Convert raw AWS Glue table data into a standardized TableMetadata object.
+
+        Parameters:
+            table (dict): Raw table data as returned from the AWS Glue API.
+
+        Returns:
+            TableMetadata: An object containing structured metadata information.
+        """
         columns = [
             Column(name=col['Name'], datatype=col['Type']) 
             for col in table['StorageDescriptor']['Columns']
@@ -81,7 +105,17 @@ class AWSGlueTableMetadataRetriver(TableMetadataRetriver):
             source=source
         )
 
-    def get_all_tables(self, database, additional_configs: dict = {}):
+    def get_all_tables(self, database: str, additional_configs: dict = {}) -> List[TableMetadata]:
+        """
+        Retrieve metadata for all tables in a specified database from AWS Glue.
+
+        Parameters:
+            database (str): The name of the database.
+            additional_configs (dict, optional): Additional configuration options (default is empty dict).
+
+        Returns:
+            List[TableMetadata]: A list of TableMetadata objects for every table in the database.
+        """
         paginator = self.glue.get_paginator('get_tables')
         pages = paginator.paginate(DatabaseName=database)
         
@@ -94,13 +128,19 @@ class AWSGlueTableMetadataRetriver(TableMetadataRetriver):
 
     def get_table_metadata(self, database: str, table: str) -> TableMetadata:
         """
-        Retrieve metadata for a specific table in a database.
+        Retrieve metadata for a specific table in a database from AWS Glue.
 
-        :param database: The name of the database.
-        :param table: The name of the table.
-        :return: TableMetadata object containing metadata of the table.
+        Parameters:
+            database (str): The name of the database.
+            table (str): The name of the table.
+
+        Returns:
+            TableMetadata: A TableMetadata object with detailed metadata about the table.
+
+        Raises:
+            ValueError: If the specified table is not found in the database.
+            ClientError: Propagates any other client errors from AWS Glue.
         """
-        
         try:
             response = self.glue.get_table(DatabaseName=database, Name=table)
             return self._create_table_metadata(response['Table'])
@@ -110,21 +150,33 @@ class AWSGlueTableMetadataRetriver(TableMetadataRetriver):
             else:
                 raise e
                 
-        
+
 class AWSGlueDatabaseMetadataRetriever(DatabaseMetadataRetriever):
     """
-    Implementation of DatabaseMetadataRetriver for AWS Glue.
+    Retrieves database metadata from AWS Glue.
+
+    This implementation uses the AWS Glue API to fetch information about databases,
+    including the list of tables and raw metadata.
     """
     
     def __init__(self, glue: GlueClient) -> None:
+        """
+        Initialize the database metadata retriever with a GlueClient instance.
+
+        Parameters:
+            glue (GlueClient): A boto3 client for AWS Glue.
+        """
         self.glue = glue
         
     def get_database_metadata(self, database: str) -> DatabaseMetadata:
         """
-        Retrieve metadata for a specific database.
+        Retrieve metadata for a specific database from AWS Glue.
 
-        :param database: The name of the database.
-        :return: DatabaseMetadata object containing metadata of the database.
+        Parameters:
+            database (str): The name of the database.
+
+        Returns:
+            DatabaseMetadata: An object containing metadata and table information for the database.
         """
         response = self.glue.get_database(Name=database)
 
@@ -140,9 +192,10 @@ class AWSGlueDatabaseMetadataRetriever(DatabaseMetadataRetriever):
     
     def get_all_databases(self) -> List[DatabaseMetadata]:
         """
-        Retrieve a list of all databases.
+        Retrieve metadata for all databases available in AWS Glue.
 
-        :return: List of database names.
+        Returns:
+            List[DatabaseMetadata]: A list of DatabaseMetadata objects, each representing a database.
         """
         response = self.glue.get_databases()
         return [
@@ -154,6 +207,3 @@ class AWSGlueDatabaseMetadataRetriever(DatabaseMetadataRetriever):
             )
             for database in response['DatabaseList']
         ]
-    
-
-

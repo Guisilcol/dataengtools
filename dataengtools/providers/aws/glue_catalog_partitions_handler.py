@@ -9,38 +9,45 @@ from urllib.parse import urlparse
 logger = logging.getLogger(__name__)
 
 class AWSGluePartitionHandler(PartitionHandler):
+    """
+    AWSGluePartitionHandler handles table partition operations in AWS Glue.
+
+    This implementation provides methods to retrieve, delete, and repair
+    partitions of a Hive-style table using AWS Glue and S3.
+    """
+
     def __init__(self, glue: GlueClient, s3: S3Client) -> None:
         """
-        Initialize the AWS Glue Partition Handler.
+        Initialize the AWSGluePartitionHandler with AWS Glue and S3 clients.
 
-        Args:
-            glue: AWS Glue client instance
-            s3: AWS S3 client instance
+        Parameters:
+            glue (GlueClient): An AWS Glue client instance.
+            s3 (S3Client): An AWS S3 client instance.
         """
         self.glue = glue
         self.s3 = s3
 
     def get_partitions(self, database: str, table: str, conditions: Optional[str] = None) -> List[Partition]:
         """
-        Retrieve all partitions from a Glue table.
+        Retrieve all partitions of a Glue table.
 
-        Args:
-            database: Glue database name
-            table: Glue table name
-            conditions: Optional filter conditions
+        This method uses AWS Glue's pagination to list partitions from
+        the specified database and table. It processes the returned partition
+        locations to extract partition names relative to the base storage location.
+
+        Parameters:
+            database (str): The name of the Glue database.
+            table (str): The name of the Glue table.
+            conditions (Optional[str]): Optional filter conditions to limit partitions.
 
         Returns:
-            List of Partition objects
-            
+            List[Partition]: A list of Partition objects representing each partition.
+
         Example:
             >>> handler.get_partitions("my_database", "my_table")
-            [
-                Partition("year=2024/month=01"),
-                Partition("year=2024/month=02")
-            ]
+            [Partition("year=2024/month=01"), Partition("year=2024/month=02")]
         """
         paginator = self.glue.get_paginator('get_partitions')
-        partitions = []
         
         table_response = self.glue.get_table(DatabaseName=database, Name=table)
         base_location = table_response['Table']['StorageDescriptor']['Location'].rstrip('/')
@@ -70,16 +77,19 @@ class AWSGluePartitionHandler(PartitionHandler):
         """
         Delete multiple partitions from a Glue table in batches.
 
-        Args:
-            database: Glue database name
-            table: Glue table name
-            partitions: List of partitions to delete
+        This method deletes partitions in chunks (of up to 25 partitions per batch)
+        by preparing the required input for the Glue batch_delete_partition API.
+
+        Parameters:
+            database (str): The name of the Glue database.
+            table (str): The name of the Glue table.
+            partitions (List[Partition]): A list of partitions to be deleted.
+
+        Returns:
+            None
 
         Example:
-            >>> partitions_to_delete = [
-            ...     Partition("year=2024/month=01"),
-            ...     Partition("year=2024/month=02")
-            ... ]
+            >>> partitions_to_delete = [Partition("year=2024/month=01"), Partition("year=2024/month=02")]
             >>> handler.delete_partitions("my_database", "my_table", partitions_to_delete)
         """
         CHUNK_SIZE = 25
@@ -96,23 +106,27 @@ class AWSGluePartitionHandler(PartitionHandler):
 
     def _create_partitions_batch(self, database: str, table: str, partition_info_list: List[Dict], storage_descriptor: Dict) -> None:
         """
-        Create multiple partitions in the Glue table using batch operations.
+        Create multiple partitions in a Glue table using batch operations.
 
-        Args:
-            database: Glue database name
-            table: Glue table name
-            partition_info_list: List of partition information dictionaries
-            storage_descriptor: Storage descriptor from parent table
+        This method processes a list of partition information dictionaries and creates
+        partitions in chunks (of up to 100 partitions per batch) by calling the Glue API.
+
+        Parameters:
+            database (str): The name of the Glue database.
+            table (str): The name of the Glue table.
+            partition_info_list (List[Dict]): List of partition information dictionaries. 
+                Each dictionary should contain 'values' and 'location' keys.
+            storage_descriptor (Dict): The storage descriptor obtained from the parent table.
+
+        Returns:
+            None
 
         Example:
-            >>> partition_info = [
-            ...     {
-            ...         'values': ['2024', '01'],
-            ...         'location': 's3://bucket/path/year=2024/month=01'
-            ...     }
-            ... ]
-            >>> handler._create_partitions_batch("my_database", "my_table", 
-            ...                                 partition_info, storage_descriptor)
+            >>> partition_info = [{
+            ...     'values': ['2024', '01'],
+            ...     'location': 's3://bucket/path/year=2024/month=01'
+            ... }]
+            >>> handler._create_partitions_batch("my_database", "my_table", partition_info, storage_descriptor)
         """
         CHUNK_SIZE = 100
         try:
@@ -144,21 +158,21 @@ class AWSGluePartitionHandler(PartitionHandler):
 
     def _list_s3_partitions(self, bucket: str, prefix: str) -> List[str]:
         """
-        List all partition directories that have data in S3.
+        List all partition directories that contain data in S3.
 
-        Args:
-            bucket: S3 bucket name
-            prefix: S3 prefix path (e.g., 'database/table')
+        This method uses S3 pagination to list objects under the specified prefix and extracts
+        the partition directories from the object keys.
+
+        Parameters:
+            bucket (str): The S3 bucket name.
+            prefix (str): The S3 prefix path (e.g., 'database/table').
 
         Returns:
-            List of partition directories without bucket and table prefix
+            List[str]: A list of partition directory strings (without bucket and table prefix).
 
         Example:
             >>> handler._list_s3_partitions("my-bucket", "data/table1")
-            [
-                "year=2024/month=01",
-                "year=2024/month=02"
-            ]
+            ["year=2024/month=01", "year=2024/month=02"]
         """
         try:
             s3_partitions = set()
@@ -167,12 +181,12 @@ class AWSGluePartitionHandler(PartitionHandler):
             for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
                 if 'Contents' in page:
                     for obj in page['Contents']:
-                        # Extract only the partition directory
+                        # Extract partition directory parts from the S3 object key
                         path_parts = obj['Key'].split('/')
                         # Remove the file name and any empty strings
                         path_parts = [p for p in path_parts[:-1] if p]
                         
-                        # Skip if we don't have more parts than the prefix
+                        # Skip if the partition information is not present
                         prefix_parts = [p for p in prefix.split('/') if p]
                         if len(path_parts) <= len(prefix_parts):
                             continue
@@ -189,52 +203,53 @@ class AWSGluePartitionHandler(PartitionHandler):
 
     def repair_table(self, database: str, table: str) -> None:
         """
-        Repair Glue table partitions by removing partitions without data and creating new ones.
-        
-        Args:
-            database: Glue database name
-            table: Glue table name
+        Repair a Glue table by synchronizing its partitions with the actual data in S3.
+
+        This method performs the following steps:
+            1. Retrieves the current table information and base S3 location.
+            2. Lists existing Glue partitions and S3 directories that contain data.
+            3. Identifies partitions that exist in Glue but not in S3, and deletes them.
+            4. Identifies S3 partitions that are missing in Glue, and creates them in batch.
+
+        Parameters:
+            database (str): The name of the Glue database.
+            table (str): The name of the Glue table.
+
+        Returns:
+            None
 
         Example:
             >>> handler.repair_table("my_database", "my_table")
-            # This will:
-            # 1. Remove partitions that don't have data in S3
-            # 2. Create new partitions for S3 paths that aren't in the Glue catalog
-            # Logs will show:
-            # "Deleting 5 partitions"
-            # "Creating 3 new partitions"
-            # "Table my_database.my_table repair completed successfully"
+            # This will remove stale partitions and create new ones based on S3 data.
         """
         try:
-            # Get table information
+            # Get table information and base location
             table_info = self.glue.get_table(DatabaseName=database, Name=table)
             base_location = table_info['Table']['StorageDescriptor']['Location'].rstrip('/')
             storage_descriptor = table_info['Table']['StorageDescriptor']
             
-            # Parse S3 location
+            # Parse S3 location to get bucket and prefix
             parsed_url = urlparse(base_location)
             bucket = parsed_url.netloc
             prefix = parsed_url.path.lstrip('/')
             
-            # List existing Glue partitions
+            # List existing Glue partitions and S3 partitions
             existing_partitions = self.get_partitions(database, table)
             existing_locations = {p for p in existing_partitions}
-            
-            # List partitions with data in S3
             s3_partitions = self._list_s3_partitions(bucket, prefix)
             
-            # Identify partitions to delete (exist in Glue but not in S3)
+            # Identify Glue partitions that do not have data in S3
             partitions_to_delete = []
             for partition in existing_partitions:
                 if partition not in s3_partitions:
                     partitions_to_delete.append(partition)
             
-            # Delete partitions in batch
+            # Delete partitions that are stale in Glue
             if partitions_to_delete:
                 logger.info(f"Deleting {len(partitions_to_delete)} partitions")
                 self.delete_partitions(database, table, partitions_to_delete)
             
-            # Prepare information for new partitions
+            # Prepare new partitions from S3 that are missing in Glue
             partitions_to_create = []
             for s3_path in s3_partitions:
                 if s3_path not in existing_locations:
@@ -244,7 +259,7 @@ class AWSGluePartitionHandler(PartitionHandler):
                         'location': f"{base_location}/{s3_path}"
                     })
             
-            # Create new partitions in batch
+            # Create missing partitions in Glue
             if partitions_to_create:
                 logger.info(f"Creating {len(partitions_to_create)} partitions")
                 self._create_partitions_batch(database, table, partitions_to_create, storage_descriptor)
