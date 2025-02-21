@@ -97,6 +97,8 @@ class EngineFactory:
         if provider == 'duckdb|aws':
             s3fs = configuration.get('s3fs') or S3FileSystem()
             connection = configuration.get('connection') or duckdb.connect(':memory:')
+            # It is important that DuckDBReader and DuckDBWriter receive a same connection,
+            # because if you try to register a relation from a connection to another, it will raise an error.
             return DuckDBFilesystemEngine(
                 AWSS3FilesystemHandler(s3fs), 
                 DuckDBReader(connection, GlueSQLProviderConfigurator()),
@@ -105,11 +107,16 @@ class EngineFactory:
         
         if provider == 'dataframe|aws':
             s3fs = configuration.get('s3fs') or S3FileSystem()
-            connection = configuration.get('connection') or duckdb.connect(':memory:')
+            reader_connection = configuration.get('reader_connection') or duckdb.connect(':memory:')
+            writer_connection = configuration.get('writer_connection') or duckdb.connect(':memory:')
+            # It is important that DuckDBReader and DuckDBWriter receive separate connections,
+            # because if you try to write a dataframe read in batches using the same connection,
+            # all subsequent batches after the write operation will be lost. Reason for this is unknown.
+
             return PolarsFilesystemEngine(
                 AWSS3FilesystemHandler(s3fs), 
-                DuckDBReader(connection, GlueSQLProviderConfigurator()),
-                DuckDBWriter(connection, GlueSQLProviderConfigurator())
+                DuckDBReader(reader_connection, GlueSQLProviderConfigurator()),
+                DuckDBWriter(writer_connection, GlueSQLProviderConfigurator())
             )
 
         raise NotImplementedError(f'Filesystem engine for provider {provider} is not implemented')

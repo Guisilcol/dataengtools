@@ -5,7 +5,7 @@ from dataengtools.core.interfaces.integration_layer.filesystem_handler import Fi
 from dataengtools.core.interfaces.io.reader import Reader, ReaderOptions
 from dataengtools.core.interfaces.io.writer import Writer, WriterOptions
 
-from duckdb import DuckDBPyRelation, from_arrow
+from duckdb import DuckDBPyRelation
 import polars as pl
 
 class DuckDBFilesystemEngine(FilesystemEngine[DuckDBPyRelation]):
@@ -46,9 +46,9 @@ class PolarsFilesystemEngine(DuckDBFilesystemEngine):
     ) -> Any:
         data = super().read_files(prefix, reader_options)
         if batch_size:
-            return (pl.from_arrow(batch) for batch in data.record_batch(batch_size))
+            return (pl.from_arrow(batch) for batch in data.fetch_arrow_reader(batch_size))
         else:
             return data.pl()
         
     def write_files(self, data: pl.DataFrame, path: str, writer_options: WriterOptions = {}) -> None:
-        return super().write_files(data.to_arrow(), path, writer_options)
+        return super().write_files(data, path, writer_options) # type: ignore
